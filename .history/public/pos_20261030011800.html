@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Olu | Staff POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.wrapx{max-width:1240px;margin:auto;padding:10px clamp(14px,4vw,40px) 60px}
+.pos{display:grid;grid-template-columns:1fr 390px;gap:22px;align-items:start}
+.prods{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.prod{border:0;text-align:left;padding:14px;border-radius:18px;background:rgba(255,255,255,.82);cursor:pointer;display:grid;gap:4px;font:inherit;color:var(--ink);box-shadow:0 10px 24px -16px rgba(30,59,63,.45);transition:transform .15s,box-shadow .2s}
+.prod:hover{transform:translateY(-3px);box-shadow:0 16px 28px -16px rgba(30,59,63,.5)}.prod:active{transform:scale(.97)}
+.prod .e{font-size:1.8rem}.prod b{font:600 1.1rem var(--serif)}.prod .pr{color:var(--gold);font-weight:700}
+.ticket{padding:18px;position:sticky;top:96px}.ticket h3{font:600 1.6rem var(--serif);margin:0 0 8px}
+.tl{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #cfe0da;gap:8px}.tl>span:first-child{flex:1}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.seg .tab{text-align:center;padding:10px 0}
+.ticket label{margin-bottom:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}.stat{padding:20px}.stat b{display:block;font:600 2rem var(--serif);margin-top:4px}
+.rc{font-size:.9rem}.rc h3{text-align:center;margin-bottom:2px}.rc>p{text-align:center}
+.lone{padding:14px 18px}
+@media(max-width:900px){.pos{grid-template-columns:1fr}.ticket{position:static}}
+@media print{body>*:not(.modal){display:none!important}.modal{position:static;background:none;backdrop-filter:none}.sheet{box-shadow:none;max-height:none;padding:0;background:#fff}.x,.actions{display:none!important}}
+</style></head>
+<body>
+<div class="orb o1"></div><div class="orb o2"></div>
+<header class="nav"><a class="brand" href="/">Olu</a><span class="muted">Staff POS</span></header>
+
+<div id="gate" class="wrapx" style="max-width:520px"><h2>Staff sign-in</h2><p class="muted">Enter the staff key to open the POS.</p>
+  <form id="gf" class="card lookup" style="grid-template-columns:1fr auto"><input id="key" type="password" placeholder="Staff key" required><button class="btn">Open POS</button></form><p class="msg" id="gmsg" role="alert"></p></div>
+
+<div id="app" class="wrapx" hidden>
+  <div class="tabs" id="mt"><button class="tab" data-v="sell">Sell</button><button class="tab" data-v="bills">Guest bills</button><button class="tab" data-v="report">Daily report</button></div>
+  <div id="v-sell" hidden><div class="pos"><div><div id="ptabs" class="tabs"></div><div id="prods" class="prods"></div></div><aside class="card ticket" id="ticket"></aside></div></div>
+  <div id="v-bills" hidden><h2>Guest bills</h2><p class="muted">Room charges and food charged to the room, in one bill.</p><div id="blist" class="prods" style="margin-top:18px"></div></div>
+  <div id="v-report" hidden><h2>Daily report</h2><label style="max-width:220px;margin:12px 0 18px">Date<input type="date" id="rdate"></label><div id="stats" class="stats"></div><h2 style="font-size:1.6rem;margin:28px 0 10px">Top sellers</h2><div id="top" class="card lone"></div></div>
+</div>
+
+<div id="modal" class="modal" hidden><div class="sheet card"><button class="x" id="mx" aria-label="Close">&times;</button><div id="mbody"></div></div></div>
+
+<script>
+const $ = s => document.querySelector(s), money = n => '$' + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let key = sessionStorage.getItem('olu_key') || '', menu = [], cat = 'All', tk = {}, method = 'cash', disc = 0, stays = [], stayRef = '', tendV = '';
+const H = () => ({ 'x-admin-key': key, 'Content-Type': 'application/json' });
+async function call(url, body) { const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: H(), body: body ? JSON.stringify(body) : undefined }), j = await r.json(); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; }
+const refreshStays = async () => { stays = (await call('/api/admin/bookings')).bookings; };
+
+async function unlock(k) {
+  key = k;
+  try { await refreshStays(); sessionStorage.setItem('olu_key', k); menu = (await (await fetch('/api/menu')).json()).menu; $('#gate').hidden = true; $('#app').hidden = false; show('sell'); }
+  catch (e) { key = ''; sessionStorage.removeItem('olu_key'); $('#gmsg').textContent = e.message; }
+}
+$('#gf').onsubmit = e => { e.preventDefault(); unlock($('#key').value); };
+if (key) unlock(key);
+
+function show(v) {
+  document.querySelectorAll('[id^=v-]').forEach(x => x.hidden = x.id !== 'v-' + v);
+  document.querySelectorAll('#mt .tab').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  ({ sell: renderSell, bills: renderBills, report: renderReport })[v]();
+}
+$('#mt').onclick = e => { if (e.target.dataset.v) show(e.target.dataset.v); };
+
+/* ---------- Sell ---------- */
+const lines = () => Object.entries(tk).map(([id, qty]) => ({ ...menu.find(m => m.id === id), qty })).filter(l => l.name);
+const calc = () => { const sub = lines().reduce((s, l) => s + l.price * l.qty, 0), off = sub * disc / 100, tax = (sub - off) * 0.12; return { sub, off, tax, total: sub - off + tax }; };
+function renderSell() {
+  $('#ptabs').innerHTML = ['All', ...new Set(menu.map(m => m.cat))].map(c => `<button class="tab ${c === cat ? 'on' : ''}" data-c="${c}">${c}</button>`).join('');
+  $('#prods').innerHTML = menu.filter(m => cat === 'All' || m.cat === cat).map(m => `<button class="prod" data-id="${m.id}"><span class="e">${m.icon}</span><b>${m.name}</b><span class="pr">${money(m.price)}</span></button>`).join('');
+  renderTicket();
+}
+function renderTicket() {
+  const c = calc(), L = lines(), act = stays.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status));
+  $('#ticket').innerHTML = `<h3>Current ticket</h3>
+  ${L.length ? L.map(l => `<div class="tl"><span>${esc(l.name)}</span><span class="qty"><button data-id="${l.id}" data-d="-1" aria-label="Remove one">&minus;</button><span>${l.qty}</span><button data-id="${l.id}" data-d="1" aria-label="Add one">+</button></span><b>${money(l.price * l.qty)}</b></div>`).join('') : '<p class="muted">Tap items to add them.</p>'}
+  <div class="sum"><div><span>Subtotal</span><span>${money(c.sub)}</span></div>
+  <div><span>Discount <select id="disc" style="width:auto;padding:4px 8px">${[0, 5, 10, 15, 20].map(d => `<option value="${d}" ${d === disc ? 'selected' : ''}>${d}%</option>`).join('')}</select></span><span>-${money(c.off)}</span></div>
+  <div><span>Tax (12%)</span><span>${money(c.tax)}</span></div><div class="tot"><span>Total</span><span>${money(c.total)}</span></div></div>
+  <div class="seg">${[['cash', 'Cash'], ['card', 'Card'], ['room', 'Room']].map(([k, t]) => `<button class="tab ${k === method ? 'on' : ''}" data-m="${k}">${t}</button>`).join('')}</div>
+  ${method === 'room' ? `<label>Charge to guest<select id="stay"><option value="">Select a guest...</option>${act.map(b => `<option value="${b.reference}" ${b.reference === stayRef ? 'selected' : ''}>Room ${b.room}: ${esc(b.guest)} (${b.reference})</option>`).join('')}</select></label>` : ''}
+  ${method === 'cash' ? `<label>Cash received<input id="tend" type="number" min="0" step="0.01" placeholder="0.00" value="${esc(tendV)}"></label><p class="hint" id="chg"></p>` : ''}
+  <p class="msg" id="pmsg" role="alert"></p><button class="btn" id="charge" style="width:100%" ${L.length ? '' : 'disabled'}>Charge ${money(c.total)}</button>`;
+}
+$('#ptabs').onclick = e => { if (e.target.dataset.c) { cat = e.target.dataset.c; renderSell(); } };
+$('#prods').onclick = e => { const b = e.target.closest('[data-id]'); if (b) { tk[b.dataset.id] = (tk[b.dataset.id] || 0) + 1; renderTicket(); } };
+$('#ticket').onclick = e => {
+  const t = e.target;
+  if (t.dataset.m) { method = t.dataset.m; renderTicket(); }
+  else if (t.dataset.d) { const id = t.dataset.id; tk[id] += +t.dataset.d; if (tk[id] <= 0) delete tk[id]; renderTicket(); }
+  else if (t.id === 'charge') charge();
+};
+$('#ticket').onchange = e => { if (e.target.id === 'disc') { disc = +e.target.value; renderTicket(); } if (e.target.id === 'stay') stayRef = e.target.value; };
+$('#ticket').oninput = e => { if (e.target.id === 'tend') { tendV = e.target.value; const v = +tendV - calc().total; $('#chg').textContent = tendV === '' ? '' : v >= 0 ? `Change due: ${money(v)}` : `Short by ${money(-v)}`; } };
+async function charge() {
+  $('#charge').disabled = true;
+  try {
+    const { sale } = await call('/api/admin/pos/sale', { items: Object.entries(tk).map(([id, qty]) => ({ id, qty })), method, discountPct: disc, tendered: +tendV || 0, bookingRef: stayRef });
+    tk = {}; disc = 0; tendV = ''; stayRef = ''; await refreshStays(); renderTicket(); receipt(sale);
+  } catch (e) { $('#pmsg').textContent = e.message; $('#charge').disabled = false; }
+}
+
+/* ---------- Receipt and bill (modal) ---------- */
+const modal = $('#modal'), mb = $('#mbody');
+const openM = h => { mb.innerHTML = h; modal.hidden = false; };
+$('#mx').onclick = () => { modal.hidden = true; }; modal.onclick = e => { if (e.target === modal) modal.hidden = true; };
+const rows = a => a.map(([k, v, cls]) => `<div class="${cls || ''}"><span>${k}</span><span>${v}</span></div>`).join('');
+function receipt(s) {
+  openM(`<div class="rc"><h3>Olu</h3><p class="muted">Receipt ${s.id}<br>${new Date(s.at).toLocaleString()}</p>
+  <div class="sum">${rows(s.lines.map(l => [`${l.qty} x ${esc(l.name)}`, money(l.price * l.qty)]))}
+  ${rows([['Subtotal', money(s.pricing.subtotal)], ...(s.pricing.discount ? [[`Discount (${s.discountPct}%)`, '-' + money(s.pricing.discount)]] : []), ['Tax (12%)', money(s.pricing.tax)], ['Total', money(s.pricing.total), 'tot'], ['Paid by', s.method === 'room' ? `Charged to room ${s.room}` : s.method.toUpperCase()], ...(s.method === 'cash' ? [['Change', money(s.change)]] : [])])}</div>
+  <p class="muted">Thank you for dining with us</p></div>
+  <div class="actions"><button class="btn" onclick="window.print()">Print receipt</button><button class="btn ghost" onclick="modal.hidden=true">Close</button></div>`);
+}
+
+/* ---------- Guest bills ---------- */
+async function renderBills() {
+  await refreshStays();
+  const list = stays.filter(b => !['CANCELLED', 'NO_SHOW'].includes(b.status));
+  $('#blist').innerHTML = list.length ? list.map(b => `<button class="prod" data-b="${b.reference}"><b>Room ${b.room}: ${esc(b.guest)}</b><span class="pr">${b.reference}</span><small class="muted">${b.checkIn} to ${b.checkOut}${b.settled ? ', settled' : ''}</small></button>`).join('') : '<p class="muted">No bookings yet.</p>';
+}
+$('#blist').onclick = e => { const b = e.target.closest('[data-b]'); if (b) bill(b.dataset.b); };
+function bill(ref) {
+  const b = stays.find(x => x.reference === ref), ch = b.charges || [], food = ch.reduce((s, c) => s + c.amount, 0), total = b.pricing.total + food;
+  openM(`<div class="rc"><h3>Olu: Guest bill</h3><p class="muted">${esc(b.guest)}<br>Room ${b.room}, ${b.reference}</p>
+  <div class="sum">${rows([[`Room, ${b.pricing.nights} night${b.pricing.nights > 1 ? 's' : ''} (${b.checkIn} to ${b.checkOut})`, money(b.pricing.subtotal)], ['Room tax', money(b.pricing.tax)], ...ch.map(c => [esc(c.desc), money(c.amount)]), ['Food and drinks', money(food)], ['Amount due', money(total), 'tot']])}</div>
+  ${b.settled ? `<p class="status">Settled by ${b.settled.method} on ${new Date(b.settled.at).toLocaleDateString()}</p>` : '<div class="actions"><button class="btn" data-pay="cash">Settle: cash</button><button class="btn" data-pay="card">Settle: card</button></div>'}</div>
+  <div class="actions"><button class="btn ghost" onclick="window.print()">Print bill</button><button class="btn ghost" onclick="modal.hidden=true">Close</button></div>`);
+  mb.querySelectorAll('[data-pay]').forEach(x => x.onclick = async () => { try { await call(`/api/admin/bill/${ref}`, { method: x.dataset.pay }); await renderBills(); bill(ref); } catch (e) { alert(e.message); } });
+}
+
+/* ---------- Daily report ---------- */
+async function renderReport() {
+  const d = $('#rdate').value, j = await call('/api/admin/report' + (d ? `?date=${d}` : '')); $('#rdate').value = j.date;
+  $('#stats').innerHTML = [['Sales', money(j.total)], ['Transactions', j.count], ['Cash', money(j.by.cash)], ['Card', money(j.by.card)], ['Charged to rooms', money(j.by.room)], ['Guests in house', `${j.inHouse} of ${j.totalRooms} rooms`], ['Unsettled room charges', money(j.unsettled)]].map(([k, v]) => `<div class="card stat"><span class="muted">${k}</span><b>${v}</b></div>`).join('');
+  $('#top').innerHTML = j.top.length ? j.top.map(([n, q], i) => `<div class="tl"><span>${i + 1}. ${esc(n)}</span><b>${q} sold</b></div>`).join('') : '<p class="muted">No sales on this date.</p>';
+}
+$('#rdate').onchange = renderReport;
+</script></body></html>

@@ -83,6 +83,74 @@
           "at": "2026-10-29T17:18:02.946Z"
         }
       ]
+    },
+    {
+      "reference": "FO-412FF4",
+      "status": "RECEIVED",
+      "guest": "bhanu",
+      "email": "deneththriliyanaarachchi@gmail.com",
+      "room": 101,
+      "lines": [
+        {
+          "id": "burrata",
+          "name": "Burrata & Heirloom Tomato",
+          "price": 14,
+          "qty": 1
+        }
+      ],
+      "note": "",
+      "pricing": {
+        "subtotal": 14,
+        "tax": 1.68,
+        "total": 15.68
+      },
+      "createdAt": "2026-10-29T19:56:08.618Z",
+      "history": [
+        {
+          "status": "RECEIVED",
+          "at": "2026-10-29T19:56:08.618Z"
+        }
+      ]
+    },
+    {
+      "reference": "FO-B0F06D",
+      "status": "RECEIVED",
+      "guest": "Walk-in",
+      "email": "",
+      "room": null,
+      "lines": [
+        {
+          "id": "seabass",
+          "name": "Grilled Sea Bass",
+          "price": 28,
+          "qty": 1
+        },
+        {
+          "id": "soup",
+          "name": "Roasted Pumpkin Soup",
+          "price": 9,
+          "qty": 1
+        },
+        {
+          "id": "burrata",
+          "name": "Burrata & Heirloom Tomato",
+          "price": 14,
+          "qty": 1
+        }
+      ],
+      "note": "POS S-A08173",
+      "pricing": {
+        "subtotal": 51,
+        "tax": 5.81,
+        "total": 54.26
+      },
+      "createdAt": "2026-10-29T20:09:36.001Z",
+      "history": [
+        {
+          "status": "RECEIVED",
+          "at": "2026-10-29T20:09:36.001Z"
+        }
+      ]
     }
   ],
   "menu": [
@@ -220,6 +288,43 @@
         "Terrace",
         "Butler service"
       ]
+    }
+  ],
+  "sales": [
+    {
+      "id": "S-A08173",
+      "at": "2026-10-29T20:09:36.001Z",
+      "lines": [
+        {
+          "id": "seabass",
+          "name": "Grilled Sea Bass",
+          "price": 28,
+          "qty": 1
+        },
+        {
+          "id": "soup",
+          "name": "Roasted Pumpkin Soup",
+          "price": 9,
+          "qty": 1
+        },
+        {
+          "id": "burrata",
+          "name": "Burrata & Heirloom Tomato",
+          "price": 14,
+          "qty": 1
+        }
+      ],
+      "discountPct": 5,
+      "pricing": {
+        "subtotal": 51,
+        "discount": 2.55,
+        "tax": 5.81,
+        "total": 54.26
+      },
+      "method": "cash",
+      "room": null,
+      "bookingRef": null,
+      "change": 4945.74
     }
   ]
 }
