@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Olu: Hotel Booking & Confirmation System
 
 Zero npm dependencies. Needs only Node.js 16+.
@@ -19,3 +20,6 @@ Swap db.json for PostgreSQL (with a date-range exclusion constraint), add a real
 ## Hotel picture and info
 The intro at the top of `public/index.html` (facts, amenities, text) is plain HTML, so edit it freely.
 The picture is an illustration at `public/images/olu-hotel.svg`. To use a real photo, copy it to `public/images/` (jpg, png or webp) and change the `src` of the `<img>` in index.html.
+=======
+# Hotel-System
+>>>>>>> 4eb28fc765173f00a112bb9a67e327fa6b1c0862
