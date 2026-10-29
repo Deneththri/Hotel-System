@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maison Aurelia | Book your stay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+<header class="nav"><a class="brand" href="#top">Maison Aurelia</a><nav><a href="#stay">Rooms</a><a href="#dining">Dining</a><a href="#manage">Find my booking</a></nav></header>
+<main id="top">
+  <section class="hero">
+    <h1 class="hero-title"><span>Rest</span> <span>well,</span> <span>stay</span> <span>beautifully.</span></h1>
+    <p class="lead">Choose your dates and we'll show you what's available. Your confirmation arrives instantly.</p>
+    <form id="search" class="card search">
+      <label>Check-in<input type="date" id="checkIn" required></label>
+      <label>Check-out<input type="date" id="checkOut" required></label>
+      <label>Guests<select id="guests"><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
+      <button class="btn" type="submit">Show rooms</button>
+    </form>
+    <p id="searchMsg" class="msg" role="status"></p>
+  </section>
+  <section id="stay" class="section"><div id="rooms" class="grid"></div></section>
+  <section id="dining" class="section dining">
+    <h2>Dining</h2><p class="muted">Order from our kitchen. Add your booking reference at checkout and we'll bring it to your room.</p>
+    <div id="tabs" class="tabs"></div><div id="menu"></div>
+  </section>
+  <section id="manage" class="section narrow">
+    <h2>Find my booking</h2><p class="muted">Enter your reference and the email you booked with to view or cancel.</p>
+    <form id="lookup" class="card lookup"><input id="lref" placeholder="Reference, e.g. MA-1A2B3C" required><input id="lemail" type="email" placeholder="Email address" required><button class="btn ghost">Find booking</button></form>
+    <p id="lookupMsg" class="msg" role="status"></p><div id="lookupResult"></div>
+  </section>
+</main>
+<footer>Maison Aurelia. Demo project: payments are simulated and emails are saved to the <code>outbox</code> folder.</footer>
+<div class="cartbar" id="cartbar"><span></span><button class="btn" id="reviewBtn">Review order</button></div>
+<button class="pill" id="pill" hidden></button>
+<div id="modal" class="modal" hidden><div class="sheet card" role="dialog" aria-modal="true"><button class="x" id="close" aria-label="Close">&times;</button><div id="sheetBody"></div></div></div>
+<script src="app.js"></script></body></html>

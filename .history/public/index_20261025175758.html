@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Olu | Book your stay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="orb o3"></div>
+  <header class="nav"><a class="brand" href="#top">Olu</a>
+    <nav><a href="#stay">Rooms</a><a href="#dining">Dining</a><a href="#manage">Find my booking</a></nav>
+  </header>
+  <main id="top">
+    <section class="hero">
+      <div class="intro">
+        <div class="intro-text">
+          <h1 class="hero-title"><span>Welcome</span> <span>to</span> <span>Olu.</span></h1>
+          <p class="lead">Olu is a boutique hotel made for slow mornings and easy evenings. Calm rooms, a kitchen that
+            cooks to order, and a team that remembers your name.</p>
+          <ul class="facts">
+            <li><b>11</b><span>rooms and suites</span></li>
+            <li><b>2 pm</b><span>check-in</span></li>
+            <li><b>12 pm</b><span>check-out</span></li>
+          </ul>
+          <div class="amen"><span>Free Wi-Fi</span><span>Pool</span><span>Restaurant</span><span>Airport
+              pick-up</span><span>24-hour front desk</span></div>
+        </div>
+        <figure class="pic"><img src="images/olu-hotel.svg"
+            alt="Olu hotel exterior with a palm-lined entrance and pool">
+          <figcaption>Olu, from the garden entrance</figcaption>
+        </figure>
+      </div>
+      <form id="search" class="card search">
+        <label>Check-in<input type="date" id="checkIn" required></label>
+        <label>Check-out<input type="date" id="checkOut" required></label>
+        <label>Guests<select id="guests">
+            <option>1</option>
+            <option selected>2</option>
+            <option>3</option>
+            <option>4</option>
+          </select></label>
+        <button class="btn" type="submit">Show rooms</button>
+      </form>
+      <p id="searchMsg" class="msg" role="status"></p>
+    </section>
+    <section id="stay" class="section">
+      <div id="rooms" class="grid"></div>
+    </section>
+    <section id="dining" class="section dining">
+      <h2>Dining</h2>
+      <p class="muted">Order from our kitchen. Add your booking reference at checkout and we'll bring it to your room.
+      </p>
+      <div id="tabs" class="tabs"></div>
+      <div id="menu"></div>
+    </section>
+    <section id="manage" class="section narrow">
+      <h2>Find my booking</h2>
+      <p class="muted">Enter your reference and the email you booked with to view or cancel.</p>
+      <form id="lookup" class="card lookup"><input id="lref" placeholder="Reference, e.g. OL-1A2B3C" required><input
+          id="lemail" type="email" placeholder="Email address" required><button class="btn ghost">Find booking</button>
+      </form>
+      <p id="lookupMsg" class="msg" role="status"></p>
+      <div id="lookupResult"></div>
+    </section>
+  </main>
+  <footer>Olu. Demo project: payments are simulated and emails are saved to the <code>outbox</code> folder.</footer>
+  <div class="cartbar" id="cartbar"><span></span><button class="btn" id="reviewBtn">Review order</button></div>
+  <button class="pill" id="pill" hidden></button>
+  <div id="modal" class="modal" hidden>
+    <div class="sheet card" role="dialog" aria-modal="true"><button class="x" id="close"
+        aria-label="Close">&times;</button>
+      <div id="sheetBody"></div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+
+</html>
