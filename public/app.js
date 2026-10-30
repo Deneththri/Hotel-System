@@ -5,14 +5,18 @@ const fmtDate = s => new Date(s + 'T00:00').toLocaleDateString(undefined, { week
 let rooms = [], query = {};
 async function api(url, opts) { const r = await fetch(url, opts && { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opts) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; }
 
-$('#checkIn').min = iso(new Date()); $('#checkIn').value = iso(addDays(new Date(), 1)); $('#checkOut').value = iso(addDays(new Date(), 3));
+$('#checkIn').min = iso(new Date()); $('#checkIn').value = iso(addDays(new Date(), 1)); $('#checkOut').min = iso(addDays(new Date(), 2)); $('#checkOut').value = iso(addDays(new Date(), 3));
 $('#checkIn').onchange = () => { const c = $('#checkIn').value; $('#checkOut').min = iso(addDays(c, 1)); if ($('#checkOut').value <= c) $('#checkOut').value = iso(addDays(c, 1)); };
 
 $('#search').onsubmit = async e => {
-  e.preventDefault(); $('#searchMsg').textContent = '';
+  e.preventDefault(); $('#searchMsg').textContent = ''; $('#rooms').setAttribute('aria-busy', 'true');
   query = { checkIn: $('#checkIn').value, checkOut: $('#checkOut').value, guests: +$('#guests').value };
-  try { rooms = (await api(`/api/availability?${new URLSearchParams(query)}`)).rooms; renderRooms(); }
-  catch (err) { $('#searchMsg').textContent = err.message; }
+  try {
+    rooms = (await api(`/api/availability?${new URLSearchParams(query)}`)).rooms;
+    renderRooms();
+    if (e.isTrusted) $('#stay').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) { $('#searchMsg').textContent = err.message; }
+  finally { $('#rooms').removeAttribute('aria-busy'); }
 };
 function renderRooms() {
   $('#rooms').innerHTML = rooms.length ? rooms.map((r, i) => `<article class="card room ${r.tone}" style="animation-delay:${i * .12}s">
@@ -25,9 +29,31 @@ function renderRooms() {
 $('#rooms').onclick = e => { const id = e.target.dataset.id; if (id) openBooking(rooms.find(r => r.id === id)); };
 
 const modal = $('#modal'), body = $('#sheetBody');
-const open = html => { body.innerHTML = html; modal.hidden = false; document.body.style.overflow = 'hidden'; };
+const open = html => {
+  body.innerHTML = html;
+  const title = body.querySelector('h3');
+  if (title) { title.id = 'sheetTitle'; modal.setAttribute('aria-labelledby', 'sheetTitle'); }
+  else modal.removeAttribute('aria-labelledby');
+  modal.hidden = false; document.body.style.overflow = 'hidden';
+};
 const close = () => { modal.hidden = true; document.body.style.overflow = ''; };
 $('#close').onclick = close; modal.onclick = e => { if (e.target === modal) close(); }; document.onkeydown = e => { if (e.key === 'Escape') close(); };
+const menuToggle = $('.menu-toggle'), mainNav = $('#mainNav');
+menuToggle.onclick = () => {
+  const expanded = menuToggle.getAttribute('aria-expanded') === 'true';
+  menuToggle.setAttribute('aria-expanded', String(!expanded));
+  menuToggle.setAttribute('aria-label', expanded ? 'Open menu' : 'Close menu');
+  menuToggle.textContent = expanded ? '☰' : '×';
+  mainNav.classList.toggle('open', !expanded);
+};
+mainNav.onclick = e => {
+  if (e.target.closest('a')) {
+    mainNav.classList.remove('open');
+    menuToggle.setAttribute('aria-expanded', 'false');
+    menuToggle.setAttribute('aria-label', 'Open menu');
+    menuToggle.textContent = '☰';
+  }
+};
 const summary = (p, extra = '') => `<div class="sum">${extra}<div><span>${p.nights} night${p.nights > 1 ? 's' : ''}</span><span>${money(p.subtotal)}</span></div><div><span>Taxes (12%)</span><span>${money(p.tax)}</span></div><div class="tot"><span>Total</span><span>${money(p.total)}</span></div></div>`;
 
 function openBooking(r) {
@@ -78,6 +104,7 @@ const cartLines = () => Object.entries(cart).map(([id, qty]) => ({ ...menu.find(
 const cartSub = () => cartLines().reduce((s, l) => s + l.price * l.qty, 0);
 
 function renderMenu(anim) {
+  $('#menuStatus').textContent = '';
   $('#tabs').innerHTML = ['All', ...new Set(menu.map(m => m.cat))].map(c => `<button class="tab ${c === cat ? 'on' : ''}" data-c="${c}">${c}</button>`).join('');
   $('#menu').innerHTML = menu.filter(m => cat === 'All' || m.cat === cat).map((m, i) => `<div class="card dish ${anim ? 'enter' : ''}" style="animation-delay:${i * .06}s"><div class="ico">${m.icon}</div>
     <div class="dinfo"><h4>${m.name}</h4><p>${m.desc}</p><b>${money(m.price)}</b></div><div class="qty">${cart[m.id] ? `<button data-id="${m.id}" data-d="-1" aria-label="Remove one ${m.name}">&minus;</button><span>${cart[m.id]}</span>` : ''}<button data-id="${m.id}" data-d="1" aria-label="Add ${m.name}">+</button></div></div>`).join('');
@@ -136,5 +163,7 @@ function alertReady(o) {
 }
 function chime() { try { const c = new (window.AudioContext || window.webkitAudioContext)();[880, 1175].forEach((f, i) => { const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + i * .18; o.frequency.value = f; o.connect(g); g.connect(c.destination); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .03); g.gain.exponentialRampToValueAtTime(.0001, t + .6); o.start(t); o.stop(t + .65); }); } catch { } }
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'alert'); t.textContent = msg; document.body.append(t); setTimeout(() => t.classList.add('out'), 9000); setTimeout(() => t.remove(), 9700); }
-api('/api/menu').then(r => { menu = r.menu; renderMenu(true); });
+api('/api/menu').then(r => { menu = r.menu; renderMenu(true); }).catch(err => {
+  $('#menuStatus').textContent = `The menu could not be loaded. ${err.message}`;
+});
 const saved = store.get(); if (saved) { tracked = saved; poll(); }
