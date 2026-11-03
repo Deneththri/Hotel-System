@@ -65,7 +65,11 @@
         <h2>Rooms &amp; suites</h2>
         <p class="muted">Find a little space to settle in. Every stay includes the details that make it yours.</p>
       </div>
-      <div id="rooms" class="grid" aria-live="polite"></div>
+      <div class="room-carousel">
+        <button class="room-arrow room-arrow-prev" type="button" aria-label="Show previous rooms" aria-controls="rooms" disabled>&larr;</button>
+        <div id="rooms" class="grid room-track" aria-live="polite" tabindex="0"></div>
+        <button class="room-arrow room-arrow-next" type="button" aria-label="Show more rooms" aria-controls="rooms" disabled>&rarr;</button>
+      </div>
     </section>
 
     <section id="facilities" class="section facilities-section">

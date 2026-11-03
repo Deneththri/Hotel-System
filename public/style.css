@@ -1563,6 +1563,76 @@ h2 {
     gap: 20px;
 }
 
+.room-carousel {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+}
+
+.room-track {
+    grid-auto-columns: calc((100% - 40px) / 3);
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+}
+
+.room-track::-webkit-scrollbar {
+    display: none;
+}
+
+.room-track > .room {
+    min-width: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
+
+.room-track > .room-empty {
+    width: 100%;
+    grid-column: auto;
+}
+
+.room-arrow {
+    display: none;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid rgba(157, 139, 103, .45);
+    border-radius: 50%;
+    background: rgba(255, 253, 248, .9);
+    color: var(--ink);
+    font: 500 1.5rem/1 var(--sans);
+    cursor: pointer;
+    transition: background .2s, color .2s, opacity .2s, transform .2s;
+}
+
+.room-carousel.has-overflow .room-arrow {
+    display: grid;
+    place-items: center;
+}
+
+.room-arrow:not(:disabled):hover {
+    transform: translateY(-1px);
+    background: var(--ink);
+    color: #fffaf0;
+}
+
+.room-arrow:disabled {
+    opacity: .38;
+    cursor: default;
+}
+
+.room-arrow:focus-visible,
+.room-track:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+}
+
 .room {
     display: flex;
     flex-direction: column;
@@ -1575,19 +1645,68 @@ h2 {
 }
 
 .art {
-    height: 190px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 6px;
+    height: 230px;
+    overflow: hidden;
+    background: #171613;
 }
 
-.t1 .art {
-    background: url("images/garden.png") center 55% / cover no-repeat;
+.art-panel {
+    min-width: 0;
+    background-repeat: no-repeat;
+    background-size: cover;
 }
 
-.t2 .art {
-    background: linear-gradient(135deg, #c9d1c8, #e6e2d5);
+.t1 .art-panel-main {
+    background-image: url("images/garden.png");
+    background-position: center 56%;
 }
 
-.t3 .art {
-    background: linear-gradient(135deg, #decbb8, #eee5d9);
+.t1 .art-panel-view,
+.t1 .art-panel-detail {
+    background-image: url("images/aurelia-bg.jpg");
+}
+
+.t1 .art-panel-view,
+.t2 .art-panel-main {
+    background-position: 8% center;
+}
+
+.t1 .art-panel-detail,
+.t2 .art-panel-view {
+    background-position: 50% center;
+}
+
+.t2 .art-panel-main,
+.t2 .art-panel-view,
+.t2 .art-panel-detail {
+    background-image: url("images/aurelia-bg.jpg");
+}
+
+.t2 .art-panel-detail,
+.t3 .art-panel-main {
+    background-position: 88% center;
+}
+
+.t3 .art-panel-main,
+.t3 .art-panel-view,
+.t3 .art-panel-detail {
+    background-image: url("images/aurelia-bg.jpg");
+}
+
+.t3 .art-panel-view {
+    background-position: 55% center;
+}
+
+.t3 .art-panel-detail {
+    background-image: url("images/garden.png");
+    background-position: 80% center;
+}
+
+.art::after {
+    display: none;
 }
 
 .badge {
@@ -2752,6 +2871,21 @@ body:not(.landing-page) .wrap tbody tr:hover {
     border-radius: 2px;
 }
 
+.landing-page .room-track {
+    gap: 20px;
+}
+
+.landing-page .room-arrow {
+    border-color: rgba(157, 139, 103, .38);
+    background: #fffdf8;
+    box-shadow: 0 8px 22px rgba(32, 53, 44, .1);
+}
+
+.landing-page .room-arrow:not(:disabled):hover {
+    background: #302b26;
+    color: #fffaf0;
+}
+
 .landing-page .facility-card {
     background: rgba(255, 253, 248, .7);
 }
@@ -2845,6 +2979,20 @@ body:not(.landing-page) .wrap tbody tr:hover {
         background-position: 58% center;
     }
 
+    .room-track {
+        grid-auto-columns: 100%;
+    }
+
+    .room-carousel {
+        gap: 8px;
+    }
+
+    .room-arrow {
+        width: 36px;
+        height: 36px;
+        font-size: 1.25rem;
+    }
+
     .landing-page .hero-copy {
         margin-top: 0;
         padding: 0;
@@ -2869,6 +3017,12 @@ body:not(.landing-page) .wrap tbody tr:hover {
 
     .landing-page .contact-section {
         width: calc(100% - 36px);
+    }
+}
+
+@media(min-width:761px) and (max-width:1100px) {
+    .room-track {
+        grid-auto-columns: calc((100% - 20px) / 2);
     }
 }
 

@@ -5,6 +5,28 @@ const fmtDate = s => new Date(s + 'T00:00').toLocaleDateString(undefined, { week
 let rooms = [], query = {};
 async function api(url, opts) { const r = await fetch(url, opts && { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opts) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; }
 
+const roomTrack = $('#rooms'), roomCarousel = $('.room-carousel');
+const roomPrev = $('.room-arrow-prev'), roomNext = $('.room-arrow-next');
+function updateRoomCarousel() {
+  const canScroll = roomTrack.scrollWidth > roomTrack.clientWidth + 1;
+  roomCarousel.classList.toggle('has-overflow', canScroll);
+  roomPrev.disabled = !canScroll || roomTrack.scrollLeft <= 1;
+  roomNext.disabled = !canScroll || roomTrack.scrollLeft + roomTrack.clientWidth >= roomTrack.scrollWidth - 1;
+}
+function scrollRooms(direction) {
+  const card = roomTrack.querySelector('.room');
+  if (!card) return;
+  const gap = parseFloat(getComputedStyle(roomTrack).columnGap) || 0;
+  roomTrack.scrollBy({
+    left: direction * (card.getBoundingClientRect().width + gap),
+    behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+  });
+}
+roomPrev.onclick = () => scrollRooms(-1);
+roomNext.onclick = () => scrollRooms(1);
+roomTrack.addEventListener('scroll', updateRoomCarousel, { passive: true });
+window.addEventListener('resize', updateRoomCarousel);
+
 $('#checkIn').min = iso(new Date()); $('#checkIn').value = iso(addDays(new Date(), 1)); $('#checkOut').min = iso(addDays(new Date(), 2)); $('#checkOut').value = iso(addDays(new Date(), 3));
 $('#checkIn').onchange = () => { const c = $('#checkIn').value; $('#checkOut').min = iso(addDays(c, 1)); if ($('#checkOut').value <= c) $('#checkOut').value = iso(addDays(c, 1)); };
 
@@ -19,12 +41,14 @@ $('#search').onsubmit = async e => {
   finally { $('#rooms').removeAttribute('aria-busy'); }
 };
 function renderRooms() {
-  $('#rooms').innerHTML = rooms.length ? rooms.map((r, i) => `<article class="card room ${esc(r.tone)}" style="animation-delay:${i * .12}s">
-    <div class="art">${r.left <= 2 && r.left > 0 ? `<span class="badge">Only ${r.left} left</span>` : ''}${r.left === 0 ? '<span class="badge">Fully booked</span>' : ''}</div>
+  roomTrack.scrollLeft = 0;
+  roomTrack.innerHTML = rooms.length ? rooms.map((r, i) => `<article class="card room ${esc(r.tone)}" style="animation-delay:${i * .12}s">
+    <div class="art" aria-label="${esc(r.name)} room and hotel views"><span class="art-panel art-panel-main" aria-hidden="true"></span><span class="art-panel art-panel-view" aria-hidden="true"></span><span class="art-panel art-panel-detail" aria-hidden="true"></span>${r.left <= 2 && r.left > 0 ? `<span class="badge">Only ${r.left} left</span>` : ''}${r.left === 0 ? '<span class="badge">Fully booked</span>' : ''}</div>
   <div class="body"><h3>${esc(r.name)}</h3><p>${esc(r.desc)}</p><div class="chips">${r.features.map(f => `<span>${esc(f)}</span>`).join('')}<span>Up to ${r.capacity} guests</span></div>
     <div class="foot"><div class="price"><b>${money(r.pricing.total)}</b><small>${r.pricing.nights} night${r.pricing.nights > 1 ? 's' : ''}, taxes included</small></div>
   <button class="btn" data-id="${esc(r.id)}" ${r.left ? '' : 'disabled'}>${r.left ? 'Reserve' : 'Unavailable'}</button></div></div></article>`).join('')
-    : '<p class="empty card">No rooms fit that many guests. Try fewer guests or a different date range.</p>';
+    : '<p class="empty card room-empty">No rooms fit that many guests. Try fewer guests or a different date range.</p>';
+  requestAnimationFrame(updateRoomCarousel);
 }
 $('#rooms').onclick = e => { const id = e.target.dataset.id; if (id) openBooking(rooms.find(r => r.id === id)); };
 
