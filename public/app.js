@@ -19,11 +19,11 @@ $('#search').onsubmit = async e => {
   finally { $('#rooms').removeAttribute('aria-busy'); }
 };
 function renderRooms() {
-  $('#rooms').innerHTML = rooms.length ? rooms.map((r, i) => `<article class="card room ${r.tone}" style="animation-delay:${i * .12}s">
+  $('#rooms').innerHTML = rooms.length ? rooms.map((r, i) => `<article class="card room ${esc(r.tone)}" style="animation-delay:${i * .12}s">
     <div class="art">${r.left <= 2 && r.left > 0 ? `<span class="badge">Only ${r.left} left</span>` : ''}${r.left === 0 ? '<span class="badge">Fully booked</span>' : ''}</div>
-    <div class="body"><h3>${r.name}</h3><p>${r.desc}</p><div class="chips">${r.features.map(f => `<span>${f}</span>`).join('')}<span>Up to ${r.capacity} guests</span></div>
+  <div class="body"><h3>${esc(r.name)}</h3><p>${esc(r.desc)}</p><div class="chips">${r.features.map(f => `<span>${esc(f)}</span>`).join('')}<span>Up to ${r.capacity} guests</span></div>
     <div class="foot"><div class="price"><b>${money(r.pricing.total)}</b><small>${r.pricing.nights} night${r.pricing.nights > 1 ? 's' : ''}, taxes included</small></div>
-    <button class="btn" data-id="${r.id}" ${r.left ? '' : 'disabled'}>${r.left ? 'Reserve' : 'Unavailable'}</button></div></div></article>`).join('')
+  <button class="btn" data-id="${esc(r.id)}" ${r.left ? '' : 'disabled'}>${r.left ? 'Reserve' : 'Unavailable'}</button></div></div></article>`).join('')
     : '<p class="empty card">No rooms fit that many guests. Try fewer guests or a different date range.</p>';
 }
 $('#rooms').onclick = e => { const id = e.target.dataset.id; if (id) openBooking(rooms.find(r => r.id === id)); };
@@ -58,11 +58,11 @@ const summary = (p, extra = '') => `<div class="sum">${extra}<div><span>${p.nigh
 
 function openBooking(r) {
   open(`<h3>${r.name}</h3><p class="muted">${fmtDate(query.checkIn)} to ${fmtDate(query.checkOut)}</p>${summary(r.pricing)}
-  <form class="form" id="bform"><div class="two"><label>Full name<input name="name" required autocomplete="name"></label><label>Phone<input name="phone" type="tel" autocomplete="tel"></label></div>
-  <label>Email (your confirmation goes here)<input name="email" type="email" required autocomplete="email"></label>
+  <form class="form" id="bform"><div class="two"><label>Full name<input name="name" maxlength="80" required autocomplete="name"></label><label>Phone<input name="phone" type="tel" maxlength="30" autocomplete="tel"></label></div>
+  <label>Email<input name="email" type="email" maxlength="254" required autocomplete="email"></label>
   <label>Guests<select name="guests">${Array.from({ length: r.capacity }, (_, i) => `<option ${i + 1 === query.guests ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></label>
-  <label>Special requests (optional)<textarea name="requests" rows="2" placeholder="Late arrival, extra pillows..."></textarea></label>
-  <div class="pay"><label><input type="radio" name="payment" value="pay_at_hotel" checked> Pay at hotel</label><label><input type="radio" name="payment" value="card_demo"> Pay now (demo)</label></div>
+  <label>Special requests (optional)<textarea name="requests" rows="2" maxlength="400" placeholder="Late arrival, extra pillows..."></textarea></label>
+  <p class="hint">Payment is collected at the hotel. Online card payments are not enabled.</p>
   <p class="msg" id="bmsg" role="alert"></p><button class="btn" id="bbtn">Confirm booking</button></form>`);
   $('#bform').onsubmit = async e => {
     e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); $('#bbtn').disabled = true; $('#bbtn').textContent = 'Confirming...';
@@ -73,7 +73,7 @@ function openBooking(r) {
 function success(b) {
   ctx = { name: b.guest, email: b.email, ref: b.reference };
   open(`<div class="ok"><svg class="check" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/><path d="M30 52l14 14 27-30"/></svg><h3>You're all set, ${esc(b.guest.split(' ')[0])}</h3>
-  <p class="muted">A confirmation has been sent to ${esc(b.email)}.</p><div class="ref">${b.reference}</div>
+  <p class="muted">Your booking is recorded for ${esc(b.email)}. Payment is due at the hotel.</p><div class="ref">${esc(b.reference)}</div>
   ${summary(b.pricing, `<div><span>Room</span><span>${esc(b.roomName)} #${b.room}</span></div><div><span>Check-in</span><span>${fmtDate(b.checkIn)}</span></div><div><span>Check-out</span><span>${fmtDate(b.checkOut)}</span></div><div><span>Payment</span><span>${b.payment}</span></div>`)}
   <div class="actions"><button class="btn" onclick="window.print()">Print voucher</button><button class="btn ghost" id="done">Done</button><button class="btn" id="dine">Order food</button></div></div>`);
   $('#dine').onclick = () => { close(); $('#dining').scrollIntoView({ behavior: 'smooth' }); };
@@ -99,28 +99,28 @@ $('#search').dispatchEvent(new Event('submit', { cancelable: true }));
 // ---------- Dining: menu, order, live tracking, ready alert ----------
 let menu = [], cart = {}, ctx = {}, cat = 'All', tracked = null, timer = null, lastStatus = null, lastOrder = null;
 const STEPS = ['RECEIVED', 'PREPARING', 'READY', 'DELIVERED'], LABEL = { RECEIVED: 'Received', PREPARING: 'Preparing', READY: 'Ready', DELIVERED: 'Delivered', CANCELLED: 'Cancelled' };
-const store = { get() { try { return JSON.parse(localStorage.getItem('ma_order')); } catch { return null; } }, set(v) { try { v ? localStorage.setItem('ma_order', JSON.stringify(v)) : localStorage.removeItem('ma_order'); } catch { } } };
+const store = { get() { try { return JSON.parse(sessionStorage.getItem('ma_order')); } catch { return null; } }, set(v) { try { v ? sessionStorage.setItem('ma_order', JSON.stringify(v)) : sessionStorage.removeItem('ma_order'); } catch { } } };
 const cartLines = () => Object.entries(cart).map(([id, qty]) => ({ ...menu.find(m => m.id === id), qty }));
 const cartSub = () => cartLines().reduce((s, l) => s + l.price * l.qty, 0);
 
 function renderMenu(anim) {
   $('#menuStatus').textContent = '';
-  $('#tabs').innerHTML = ['All', ...new Set(menu.map(m => m.cat))].map(c => `<button class="tab ${c === cat ? 'on' : ''}" data-c="${c}">${c}</button>`).join('');
-  $('#menu').innerHTML = menu.filter(m => cat === 'All' || m.cat === cat).map((m, i) => `<div class="card dish ${anim ? 'enter' : ''}" style="animation-delay:${i * .06}s"><div class="ico">${m.icon}</div>
-    <div class="dinfo"><h4>${m.name}</h4><p>${m.desc}</p><b>${money(m.price)}</b></div><div class="qty">${cart[m.id] ? `<button data-id="${m.id}" data-d="-1" aria-label="Remove one ${m.name}">&minus;</button><span>${cart[m.id]}</span>` : ''}<button data-id="${m.id}" data-d="1" aria-label="Add ${m.name}">+</button></div></div>`).join('');
+  $('#tabs').innerHTML = ['All', ...new Set(menu.map(m => m.cat))].map(c => `<button class="tab ${c === cat ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  $('#menu').innerHTML = menu.filter(m => cat === 'All' || m.cat === cat).map((m, i) => `<div class="card dish ${anim ? 'enter' : ''}" style="animation-delay:${i * .06}s"><div class="ico">${esc(m.icon)}</div>
+    <div class="dinfo"><h4>${esc(m.name)}</h4><p>${esc(m.desc)}</p><b>${money(m.price)}</b></div><div class="qty">${cart[m.id] ? `<button data-id="${esc(m.id)}" data-d="-1" aria-label="Remove one ${esc(m.name)}">&minus;</button><span>${cart[m.id]}</span>` : ''}<button data-id="${esc(m.id)}" data-d="1" aria-label="Add ${esc(m.name)}">+</button></div></div>`).join('');
   const n = Object.values(cart).reduce((a, b) => a + b, 0);
   $('#cartbar').classList.toggle('show', n > 0); $('#cartbar span').textContent = `${n} item${n > 1 ? 's' : ''}, ${money(cartSub())}`;
 }
 $('#tabs').onclick = e => { if (e.target.dataset.c) { cat = e.target.dataset.c; renderMenu(true); } };
-$('#menu').onclick = e => { const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id; cart[id] = Math.max(0, (cart[id] || 0) + +b.dataset.d); if (!cart[id]) delete cart[id]; renderMenu(); };
+$('#menu').onclick = e => { const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id, next = (cart[id] || 0) + +b.dataset.d; if (next > 20) { $('#menuStatus').textContent = 'A maximum of 20 of each item can be ordered.'; return; } cart[id] = Math.max(0, next); if (!cart[id]) delete cart[id]; renderMenu(); };
 $('#reviewBtn').onclick = openCheckout;
 
 function openCheckout() {
   const sub = cartSub(), tax = +(sub * 0.12).toFixed(2);
-  open(`<h3>Your order</h3><div class="sum">${cartLines().map(l => `<div><span>${l.qty} x ${l.name}</span><span>${money(l.price * l.qty)}</span></div>`).join('')}<div><span>Taxes (12%)</span><span>${money(tax)}</span></div><div class="tot"><span>Total</span><span>${money(sub + tax)}</span></div></div>
-  <form class="form" id="oform"><div class="two"><label>Full name<input name="name" required value="${esc(ctx.name || '')}"></label><label>Email<input name="email" type="email" required value="${esc(ctx.email || '')}"></label></div>
-  <label>Booking reference (optional)<input name="bookingRef" placeholder="OL-1A2B3C" value="${esc(ctx.ref || '')}"></label><p class="hint">Add it and we'll bring your order to your room. Leave it empty to collect at the restaurant.</p>
-  <label>Notes for the kitchen<textarea name="note" rows="2" placeholder="Allergies, spice level..."></textarea></label>
+  open(`<h3>Your order</h3><div class="sum">${cartLines().map(l => `<div><span>${l.qty} x ${esc(l.name)}</span><span>${money(l.price * l.qty)}</span></div>`).join('')}<div><span>Taxes (12%)</span><span>${money(tax)}</span></div><div class="tot"><span>Total</span><span>${money(sub + tax)}</span></div></div>
+  <form class="form" id="oform"><div class="two"><label>Full name<input name="name" maxlength="80" required value="${esc(ctx.name || '')}"></label><label>Email<input name="email" type="email" maxlength="254" required value="${esc(ctx.email || '')}"></label></div>
+  <label>Booking reference (optional)<input name="bookingRef" maxlength="32" placeholder="OL-..." value="${esc(ctx.ref || '')}"></label><p class="hint">Add it for room delivery; the charge is added to your guest bill when delivered. Leave it empty to collect at the restaurant.</p>
+  <label>Notes for the kitchen<textarea name="note" rows="2" maxlength="300" placeholder="Allergies, spice level..."></textarea></label>
   <p class="msg" id="omsg" role="alert"></p><button class="btn" id="obtn">Place order</button></form>`);
   $('#oform').onsubmit = async e => {
     e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); $('#obtn').disabled = true; $('#obtn').textContent = 'Placing order...';
@@ -145,7 +145,10 @@ function bindTracker(o) {
 }
 function poll() {
   clearInterval(timer); if (!tracked) return;
-  const tick = async () => { try { onStatus((await api(`/api/orders/${tracked.ref}?email=${encodeURIComponent(tracked.email)}`)).order); } catch { } };
+  const tick = async () => {
+    try { onStatus((await api(`/api/orders/${tracked.ref}?email=${encodeURIComponent(tracked.email)}`)).order); }
+    catch (err) { $('#menuStatus').textContent = `Order tracking is temporarily unavailable. ${err.message}`; }
+  };
   tick(); timer = setInterval(tick, 4000);
 }
 function onStatus(o) {

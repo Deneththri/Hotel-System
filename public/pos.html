@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Olu | Staff POS</title>
+<title>Aurelia Grand | Staff POS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
@@ -20,12 +20,12 @@
 @media(max-width:900px){.pos{grid-template-columns:1fr}.ticket{position:static}}
 @media print{body>*:not(.modal){display:none!important}.modal{position:static;background:none;backdrop-filter:none}.sheet{box-shadow:none;max-height:none;padding:0;background:#fff}.x,.actions{display:none!important}}
 </style></head>
-<body>
+<body class="pos-page">
 <div class="orb o1"></div><div class="orb o2"></div>
-<header class="nav"><a class="brand" href="/">Olu</a><span class="muted">Staff POS</span></header>
+<header class="nav"><a class="brand brand-lockup" href="/" aria-label="Aurelia Grand home"><span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span></a><div style="display:flex;align-items:center;gap:14px"><span class="muted">Staff POS</span><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div></header>
 
 <div id="gate" class="wrapx" style="max-width:520px"><h2>Staff sign-in</h2><p class="muted">Enter the staff key to open the POS.</p>
-  <form id="gf" class="card lookup" style="grid-template-columns:1fr auto"><input id="key" type="password" placeholder="Staff key" required><button class="btn">Open POS</button></form><p class="msg" id="gmsg" role="alert"></p></div>
+  <form id="gf" class="card lookup" style="grid-template-columns:1fr auto"><input id="key" type="password" placeholder="Staff key" autocomplete="current-password" required><button class="btn">Open POS</button></form><p class="msg" id="gmsg" role="alert"></p></div>
 
 <div id="app" class="wrapx" hidden>
   <div class="tabs" id="mt"><button class="tab" data-v="sell">Sell</button><button class="tab" data-v="bills">Guest bills</button><button class="tab" data-v="report">Daily report</button></div>
@@ -39,18 +39,42 @@
 <script>
 const $ = s => document.querySelector(s), money = n => 'Rs ' + Number(n || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-let key = sessionStorage.getItem('olu_key') || '', menu = [], cat = 'All', tk = {}, method = 'cash', disc = 0, stays = [], stayRef = '', tendV = '';
-const H = () => ({ 'x-admin-key': key, 'Content-Type': 'application/json' });
+let menu = [], cat = 'All', tk = {}, method = 'cash', disc = 0, stays = [], stayRef = '', tendV = '';
+const H = () => ({ 'Content-Type': 'application/json' });
 async function call(url, body) { const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: H(), body: body ? JSON.stringify(body) : undefined }), j = await r.json(); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; }
 const refreshStays = async () => { stays = (await call('/api/admin/bookings')).bookings; };
 
+async function openPOS() {
+  try {
+    await refreshStays();
+    const r = await fetch('/api/menu'), j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'The menu could not be loaded.');
+    menu = j.menu; show('sell');
+    $('#gate').hidden = true; $('#app').hidden = false; $('#logout').hidden = false;
+  } catch (e) {
+    $('#gmsg').textContent = e.message; $('#gate').hidden = false; $('#app').hidden = true; $('#logout').hidden = true;
+    throw e;
+  }
+}
 async function unlock(k) {
-  key = k;
-  try { await refreshStays(); sessionStorage.setItem('olu_key', k); menu = (await (await fetch('/api/menu')).json()).menu; $('#gate').hidden = true; $('#app').hidden = false; show('sell'); }
-  catch (e) { key = ''; sessionStorage.removeItem('olu_key'); $('#gmsg').textContent = e.message; }
+  try {
+    await call('/api/admin/session', { key: k });
+    $('#key').value = '';
+    $('#gmsg').textContent = '';
+    await openPOS();
+  } catch (e) { $('#gmsg').textContent = e.message; }
 }
 $('#gf').onsubmit = e => { e.preventDefault(); unlock($('#key').value); };
-if (key) unlock(key);
+async function restoreSession() {
+  try { if ((await call('/api/admin/session')).authenticated) await openPOS(); }
+  catch (e) { $('#gmsg').textContent = e.message; }
+}
+$('#logout').onclick = async () => {
+  try { await call('/api/admin/session/logout', {}); }
+  catch (e) { $('#gmsg').textContent = e.message; return; }
+  tk = {}; stays = []; $('#app').hidden = true; $('#gate').hidden = false; $('#logout').hidden = true; $('#key').value = ''; $('#gmsg').textContent = 'You have signed out.';
+};
+restoreSession();
 
 function show(v) {
   document.querySelectorAll('[id^=v-]').forEach(x => x.hidden = x.id !== 'v-' + v);
@@ -61,14 +85,15 @@ $('#mt').onclick = e => { if (e.target.dataset.v) show(e.target.dataset.v); };
 
 /* ---------- Sell ---------- */
 const lines = () => Object.entries(tk).map(([id, qty]) => ({ ...menu.find(m => m.id === id), qty })).filter(l => l.name);
-const calc = () => { const sub = lines().reduce((s, l) => s + l.price * l.qty, 0), off = sub * disc / 100, tax = (sub - off) * 0.12; return { sub, off, tax, total: sub - off + tax }; };
+const round = value => Number(value.toFixed(2));
+const calc = () => { const sub = round(lines().reduce((s, l) => s + l.price * l.qty, 0)), off = round(sub * disc / 100), tax = round((sub - off) * 0.12); return { sub, off, tax, total: round(sub - off + tax) }; };
 function renderSell() {
-  $('#ptabs').innerHTML = ['All', ...new Set(menu.map(m => m.cat))].map(c => `<button class="tab ${c === cat ? 'on' : ''}" data-c="${c}">${c}</button>`).join('');
-  $('#prods').innerHTML = menu.filter(m => cat === 'All' || m.cat === cat).map(m => `<button class="prod" data-id="${m.id}"><span class="e">${m.icon}</span><b>${m.name}</b><span class="pr">${money(m.price)}</span></button>`).join('');
+  $('#ptabs').innerHTML = ['All', ...new Set(menu.map(m => m.cat))].map(c => `<button class="tab ${c === cat ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  $('#prods').innerHTML = menu.filter(m => cat === 'All' || m.cat === cat).map(m => `<button class="prod" data-id="${esc(m.id)}"><span class="e">${esc(m.icon)}</span><b>${esc(m.name)}</b><span class="pr">${money(m.price)}</span></button>`).join('');
   renderTicket();
 }
 function renderTicket() {
-  const c = calc(), L = lines(), act = stays.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status));
+  const c = calc(), L = lines(), today = new Date().toISOString().slice(0, 10), act = stays.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status) && b.checkIn <= today && today < b.checkOut && !b.settled);
   $('#ticket').innerHTML = `<h3>Current ticket</h3>
   ${L.length ? L.map(l => `<div class="tl"><span>${esc(l.name)}</span><span class="qty"><button data-id="${l.id}" data-d="-1" aria-label="Remove one">&minus;</button><span>${l.qty}</span><button data-id="${l.id}" data-d="1" aria-label="Add one">+</button></span><b>${money(l.price * l.qty)}</b></div>`).join('') : '<p class="muted">Tap items to add them.</p>'}
   <div class="sum"><div><span>Subtotal</span><span>${money(c.sub)}</span></div>
@@ -80,7 +105,7 @@ function renderTicket() {
   <p class="msg" id="pmsg" role="alert"></p><button class="btn" id="charge" style="width:100%" ${L.length ? '' : 'disabled'}>Charge ${money(c.total)}</button>`;
 }
 $('#ptabs').onclick = e => { if (e.target.dataset.c) { cat = e.target.dataset.c; renderSell(); } };
-$('#prods').onclick = e => { const b = e.target.closest('[data-id]'); if (b) { tk[b.dataset.id] = (tk[b.dataset.id] || 0) + 1; renderTicket(); } };
+$('#prods').onclick = e => { const b = e.target.closest('[data-id]'); if (b && (tk[b.dataset.id] || 0) < 50) { tk[b.dataset.id] = (tk[b.dataset.id] || 0) + 1; renderTicket(); } };
 $('#ticket').onclick = e => {
   const t = e.target;
   if (t.dataset.m) { method = t.dataset.m; renderTicket(); }
@@ -103,7 +128,7 @@ const openM = h => { mb.innerHTML = h; modal.hidden = false; };
 $('#mx').onclick = () => { modal.hidden = true; }; modal.onclick = e => { if (e.target === modal) modal.hidden = true; };
 const rows = a => a.map(([k, v, cls]) => `<div class="${cls || ''}"><span>${k}</span><span>${v}</span></div>`).join('');
 function receipt(s) {
-  openM(`<div class="rc"><h3>Olu</h3><p class="muted">Receipt ${s.id}<br>${new Date(s.at).toLocaleString()}</p>
+  openM(`<div class="rc"><h3>Aurelia Grand</h3><p class="muted">Receipt ${s.id}<br>${new Date(s.at).toLocaleString()}</p>
   <div class="sum">${rows(s.lines.map(l => [`${l.qty} x ${esc(l.name)}`, money(l.price * l.qty)]))}
   ${rows([['Subtotal', money(s.pricing.subtotal)], ...(s.pricing.discount ? [[`Discount (${s.discountPct}%)`, '-' + money(s.pricing.discount)]] : []), ['Tax (12%)', money(s.pricing.tax)], ['Total', money(s.pricing.total), 'tot'], ['Paid by', s.method === 'room' ? `Charged to room ${s.room}` : s.method.toUpperCase()], ...(s.method === 'cash' ? [['Change', money(s.change)]] : [])])}</div>
   <p class="muted">Thank you for dining with us</p></div>
@@ -119,7 +144,7 @@ async function renderBills() {
 $('#blist').onclick = e => { const b = e.target.closest('[data-b]'); if (b) bill(b.dataset.b); };
 function bill(ref) {
   const b = stays.find(x => x.reference === ref), ch = b.charges || [], food = ch.reduce((s, c) => s + c.amount, 0), total = b.pricing.total + food;
-  openM(`<div class="rc"><h3>Olu: Guest bill</h3><p class="muted">${esc(b.guest)}<br>Room ${b.room}, ${b.reference}</p>
+  openM(`<div class="rc"><h3>Aurelia Grand: Guest bill</h3><p class="muted">${esc(b.guest)}<br>Room ${b.room}, ${b.reference}</p>
   <div class="sum">${rows([[`Room, ${b.pricing.nights} night${b.pricing.nights > 1 ? 's' : ''} (${b.checkIn} to ${b.checkOut})`, money(b.pricing.subtotal)], ['Room tax', money(b.pricing.tax)], ...ch.map(c => [esc(c.desc), money(c.amount)]), ['Food and drinks', money(food)], ['Amount due', money(total), 'tot']])}</div>
   ${b.settled ? `<p class="status">Settled by ${b.settled.method} on ${new Date(b.settled.at).toLocaleDateString()}</p>` : '<div class="actions"><button class="btn" data-pay="cash">Settle: cash</button><button class="btn" data-pay="card">Settle: card</button></div>'}</div>
   <div class="actions"><button class="btn ghost" onclick="window.print()">Print bill</button><button class="btn ghost" onclick="modal.hidden=true">Close</button></div>`);

@@ -4,7 +4,8 @@
     "description": "Hotel booking & confirmation system (zero dependencies)",
     "main": "server.js",
     "scripts": {
-        "start": "node server.js"
+        "start": "node server.js",
+        "test": "node test/smoke.js"
     },
     "engines": {
         "node": ">=16"

@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Front desk | Olu</title>
+    <title>Front desk | Aurelia Grand</title>
     <link rel="stylesheet" href="style.css">
     <style>
         table {
@@ -35,15 +35,15 @@
     </style>
 </head>
 
-<body>
+<body class="admin-page">
     <div class="orb o1"></div>
     <div class="orb o2"></div>
-    <header class="nav"><a class="brand" href="/">Olu</a><span class="muted">Front desk</span></header>
+    <header class="nav"><a class="brand brand-lockup" href="/" aria-label="Aurelia Grand home"><span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span></a><div style="display:flex;align-items:center;gap:14px"><span class="muted">Front desk</span><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div></header>
     <main class="section">
         <h2>Bookings</h2>
         <form id="k" class="card lookup" style="grid-template-columns:1fr auto"><input id="key" type="password"
-                placeholder="Admin key" required><button class="btn">Load</button></form>
-        <p class="msg" id="m"></p>
+                placeholder="Staff key" autocomplete="current-password" required><button class="btn">Sign in</button></form>
+        <p class="msg" id="m" role="status" aria-live="polite"></p>
         <div class="card wrap" id="t" hidden>
             <table>
                 <thead>
@@ -76,19 +76,75 @@
         </div>
     </main>
     <script>
-        const $ = s => document.querySelector(s), H = () => ({ 'x-admin-key': $('#key').value, 'Content-Type': 'application/json' }), S = ['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW'], e = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])), money = n => 'Rs ' + Number(n || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        async function load() {
-            const r = await fetch('/api/admin/bookings', { headers: H() }), j = await r.json(); if (!r.ok) { $('#m').textContent = j.error; return } $('#m').textContent = ''; $('#t').hidden = false;
-            $('tbody').innerHTML = j.bookings.length ? j.bookings.map(b => `<tr><td>${b.reference}</td><td>${e(b.guest)}<br><small class="muted">${e(b.email)}</small></td><td>${e(b.roomName)} #${b.room}</td><td>${b.checkIn} to ${b.checkOut}</td><td>${money(b.pricing.total)}</td><td><select data-r="${b.reference}">${S.map(s => `<option ${s == b.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td></tr>`).join('') : '<tr><td colspan="6" class="empty">No bookings yet.</td></tr>'
+        const $ = s => document.querySelector(s), H = () => ({ 'Content-Type': 'application/json' }), e = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])), money = n => 'Rs ' + Number(n || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const bookingNext = { CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'], CHECKED_IN: ['CHECKED_OUT'], CHECKED_OUT: [], CANCELLED: [], NO_SHOW: [] };
+        const orderNext = { RECEIVED: ['PREPARING', 'CANCELLED'], PREPARING: ['READY'], READY: ['DELIVERED'], DELIVERED: [], CANCELLED: [] };
+        let lastOrders = '', refreshTimer = null;
+        async function api(url, body) {
+            const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: H(), body: body ? JSON.stringify(body) : undefined }), j = await r.json();
+            if (!r.ok) throw new Error(j.error || 'Request failed.');
+            return j;
         }
-        $('#k').onsubmit = ev => { ev.preventDefault(); load(); loadOrders(); setInterval(loadOrders, 5000) };
-        $('tbody').onchange = async ev => { await fetch(`/api/admin/bookings/${ev.target.dataset.r}/status`, { method: 'POST', headers: H(), body: JSON.stringify({ status: ev.target.value }) }) };
-        const OS = ['RECEIVED', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED']; let last = '';
+        async function loadBookings() {
+            const { bookings } = await api('/api/admin/bookings');
+            $('#t').hidden = false;
+            $('tbody').innerHTML = bookings.length ? bookings.map(b => {
+                const options = [b.status, ...(bookingNext[b.status] || [])];
+                return `<tr><td>${e(b.reference)}</td><td>${e(b.guest)}<br><small class="muted">${e(b.email)}</small></td><td>${e(b.roomName)} #${e(b.room)}</td><td>${e(b.checkIn)} to ${e(b.checkOut)}</td><td>${money(b.pricing.total)}</td><td><select data-r="${e(b.reference)}" data-current="${e(b.status)}" aria-label="Update booking ${e(b.reference)}">${options.map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></td></tr>`;
+            }).join('') : '<tr><td colspan="6" class="empty">No bookings yet.</td></tr>';
+        }
         async function loadOrders() {
-            const r = await fetch('/api/admin/orders', { headers: H() }); if (!r.ok) return; const j = await r.json(), s = JSON.stringify(j.orders); if (s === last) return; last = s; $('#ot').hidden = false;
-            $('#ob').innerHTML = j.orders.length ? j.orders.map(o => `<tr><td>${o.reference}</td><td>${e(o.guest)}<br><small class="muted">${o.room ? 'Room ' + o.room : 'Pickup'}</small></td><td>${o.lines.map(l => l.qty + ' x ' + e(l.name)).join('<br>')}${o.note ? '<br><small class="muted">Note: ' + e(o.note) + '</small>' : ''}</td><td>${money(o.pricing.total)}</td><td><select data-o="${o.reference}">${OS.map(x => `<option ${x == o.status ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('') : '<tr><td colspan="5" class="empty">No orders yet.</td></tr>'
+            const { orders } = await api('/api/admin/orders'), signature = JSON.stringify(orders);
+            $('#ot').hidden = false;
+            if (signature === lastOrders) return;
+            lastOrders = signature;
+            $('#ob').innerHTML = orders.length ? orders.map(o => {
+                const options = [o.status, ...(orderNext[o.status] || [])];
+                return `<tr><td>${e(o.reference)}</td><td>${e(o.guest)}<br><small class="muted">${o.room ? 'Room ' + e(o.room) : 'Pickup'}</small></td><td>${o.lines.map(l => `${e(l.qty)} x ${e(l.name)}`).join('<br>')}${o.note ? '<br><small class="muted">Note: ' + e(o.note) + '</small>' : ''}</td><td>${money(o.pricing.total)}</td><td><select data-o="${e(o.reference)}" data-current="${e(o.status)}" aria-label="Update order ${e(o.reference)}">${options.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td></tr>`;
+            }).join('') : '<tr><td colspan="5" class="empty">No orders yet.</td></tr>';
         }
-        $('#ob').onchange = async ev => { await fetch(`/api/admin/orders/${ev.target.dataset.o}/status`, { method: 'POST', headers: H(), body: JSON.stringify({ status: ev.target.value }) }); last = ''; loadOrders() };
+        async function refresh() {
+            try { await Promise.all([loadBookings(), loadOrders()]); $('#m').textContent = ''; }
+            catch (error) { $('#m').textContent = error.message; }
+        }
+        async function signIn(key) {
+            try {
+                await api('/api/admin/session', { key });
+                $('#key').value = ''; $('#m').textContent = '';
+                $('#k').hidden = true; $('#logout').hidden = false;
+                await refresh();
+                clearInterval(refreshTimer); refreshTimer = setInterval(refresh, 15000);
+            } catch (error) { $('#m').textContent = error.message; }
+        }
+        $('#k').onsubmit = event => { event.preventDefault(); signIn($('#key').value); };
+        $('#logout').onclick = async () => {
+            try { await api('/api/admin/session/logout', {}); }
+            catch (error) { $('#m').textContent = error.message; return; }
+            clearInterval(refreshTimer); $('#k').hidden = false; $('#logout').hidden = true; $('#t').hidden = true; $('#ot').hidden = true; $('#m').textContent = 'You have signed out.';
+        };
+        $('tbody').onchange = async event => {
+            const select = event.target, previous = select.dataset.current;
+            try {
+                await api(`/api/admin/bookings/${encodeURIComponent(select.dataset.r)}/status`, { status: select.value });
+                select.dataset.current = select.value; await loadBookings();
+            } catch (error) { $('#m').textContent = error.message; select.value = previous || 'CONFIRMED'; }
+        };
+        $('#ob').onchange = async event => {
+            const select = event.target;
+            const previous = select.dataset.current;
+            try { await api(`/api/admin/orders/${encodeURIComponent(select.dataset.o)}/status`, { status: select.value }); select.dataset.current = select.value; lastOrders = ''; await loadOrders(); }
+            catch (error) { $('#m').textContent = error.message; select.value = previous; }
+        };
+        (async () => {
+            try {
+                if ((await api('/api/admin/session')).authenticated) {
+                    $('#k').hidden = true; $('#logout').hidden = false;
+                    await refresh(); refreshTimer = setInterval(refresh, 15000);
+                }
+            } catch (error) {
+                $('#m').textContent = error.message;
+            }
+        })();
     </script>
 </body>
 
