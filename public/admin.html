@@ -4,82 +4,105 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="theme-color" content="#19372f">
+    <meta name="description" content="Aurelia Grand front desk booking and kitchen order dashboard.">
     <title>Front desk | Aurelia Grand</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        table {
-            width: 100%;
-            border-collapse: collapse
-        }
-
-        th,
-        td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #d5e2de;
-            font-size: .92rem
-        }
-
-        th {
-            color: var(--muted)
-        }
-
-        .wrap {
-            overflow: auto;
-            padding: 12px
-        }
-
-        select {
-            padding: 8px
-        }
     </style>
 </head>
 
 <body class="admin-page">
-    <div class="orb o1"></div>
-    <div class="orb o2"></div>
-    <header class="nav"><a class="brand brand-lockup" href="/" aria-label="Aurelia Grand home"><span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span></a><div style="display:flex;align-items:center;gap:14px"><span class="muted">Front desk</span><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div></header>
-    <main class="section">
-        <h2>Bookings</h2>
-        <form id="k" class="card lookup" style="grid-template-columns:1fr auto"><input id="key" type="password"
-                placeholder="Staff key" autocomplete="current-password" required><button class="btn">Sign in</button></form>
-        <p class="msg" id="m" role="status" aria-live="polite"></p>
-        <div class="card wrap" id="t" hidden>
+    <a class="skip-link" href="#main">Skip to dashboard</a>
+    <header class="nav admin-nav">
+        <a class="brand brand-lockup" href="/" aria-label="Aurelia Grand home"><span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span></a>
+        <div class="admin-nav-actions"><span class="admin-live"><i></i> Front desk</span><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div>
+    </header>
+    <main id="main" class="admin-shell">
+        <section class="admin-welcome">
+            <div><p class="eyebrow">AURELIA GRAND · STAFF</p><h1>Your front desk</h1><p class="muted">A clear view of today's arrivals, stays and kitchen orders.</p></div>
+            <div class="welcome-mark" aria-hidden="true">✦</div>
+        </section>
+        <form id="k" class="card admin-login">
+            <div class="login-icon" aria-hidden="true">✦</div>
+            <div class="login-copy"><h2>Welcome back</h2><p class="muted">Sign in with your staff key to manage hotel operations.</p></div>
+            <label class="sr-only" for="key">Staff key</label>
+            <input id="key" type="password" placeholder="Enter your staff key" autocomplete="current-password" required>
+            <button class="btn">Sign in <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="msg admin-message" id="m" role="status" aria-live="polite"></p>
+        <div id="dashboard" hidden>
+            <section class="admin-metrics" aria-label="Today's front desk summary">
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true">⌂</span><div><span>Bookings</span><strong id="metricBookings">0</strong><small>all reservations</small></div></article>
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true">↗</span><div><span>Arriving today</span><strong id="metricArrivals">0</strong><small>confirmed stays</small></div></article>
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true">⌑</span><div><span>In house</span><strong id="metricInHouse">0</strong><small>current guests</small></div></article>
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true">♨</span><div><span>Open orders</span><strong id="metricOrders">0</strong><small>awaiting delivery</small></div></article>
+            </section>
+            <label class="dashboard-search"><span aria-hidden="true">⌕</span><span class="sr-only">Filter bookings and orders</span><input id="dashboardFilter" type="search" placeholder="Search by guest, reference, room or dish"></label>
+            <section class="admin-panel" aria-labelledby="bookingsTitle">
+                <div class="panel-heading"><div><p class="eyebrow">GUEST JOURNEY</p><h2 id="bookingsTitle">Bookings</h2></div><span class="panel-count" id="bookingCount">0</span></div>
+                <div class="card wrap" id="t">
             <table>
                 <thead>
                     <tr>
-                        <th>Ref</th>
-                        <th>Guest</th>
-                        <th>Room</th>
-                        <th>Stay</th>
-                        <th>Total</th>
-                        <th>Status</th>
+                        <th>Reference</th><th>Guest</th><th>Room</th><th>Stay dates</th><th>Total</th><th>Status</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody id="bookingRows"></tbody>
             </table>
         </div>
-        <h2 style="margin-top:36px">Kitchen orders</h2>
-        <div class="card wrap" id="ot" hidden>
+            </section>
+            <section class="admin-panel" aria-labelledby="ordersTitle">
+                <div class="panel-heading"><div><p class="eyebrow">FROM OUR KITCHEN</p><h2 id="ordersTitle">Kitchen orders</h2></div><span class="panel-count" id="orderCount">0</span></div>
+                <div class="card wrap" id="ot">
             <table>
                 <thead>
                     <tr>
-                        <th>Order</th>
-                        <th>Guest</th>
-                        <th>Items</th>
-                        <th>Total</th>
-                        <th>Status</th>
+                        <th>Order</th><th>Guest</th><th>Items</th><th>Total</th><th>Status</th>
                     </tr>
                 </thead>
                 <tbody id="ob"></tbody>
             </table>
         </div>
+            </section>
+        </div>
     </main>
+    <footer class="admin-footer"><a href="/">← Return to guest website</a><span>Made for warm welcomes.</span></footer>
     <script>
         const $ = s => document.querySelector(s), H = () => ({ 'Content-Type': 'application/json' }), e = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])), money = n => 'Rs ' + Number(n || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const bookingNext = { CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'], CHECKED_IN: ['CHECKED_OUT'], CHECKED_OUT: [], CANCELLED: [], NO_SHOW: [] };
         const orderNext = { RECEIVED: ['PREPARING', 'CANCELLED'], PREPARING: ['READY'], READY: ['DELIVERED'], DELIVERED: [], CANCELLED: [] };
-        let lastOrders = '', refreshTimer = null;
+        let lastOrders = '', refreshTimer = null, bookingsData = [], ordersData = [];
+        const localToday = () => {
+            const date = new Date();
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        };
+        const searchTerm = () => $('#dashboardFilter').value.trim().toLowerCase();
+        function renderBookings() {
+            const term = searchTerm();
+            const bookings = bookingsData.filter(b => [b.reference, b.guest, b.email, b.roomName, b.room, b.status].some(value => String(value).toLowerCase().includes(term)));
+            $('#bookingCount').textContent = bookings.length;
+            $('#bookingRows').innerHTML = bookings.length ? bookings.map(b => {
+                const options = [b.status, ...(bookingNext[b.status] || [])];
+                return `<tr><td><span class="table-ref">${e(b.reference)}</span></td><td><strong>${e(b.guest)}</strong><small class="table-sub">${e(b.email)}</small></td><td>${e(b.roomName)}<small class="table-sub">Room ${e(b.room)}</small></td><td>${e(b.checkIn)}<small class="table-sub">to ${e(b.checkOut)}</small></td><td>${money(b.pricing.total)}</td><td><select data-r="${e(b.reference)}" data-current="${e(b.status)}" aria-label="Update booking ${e(b.reference)}">${options.map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></td></tr>`;
+            }).join('') : `<tr><td colspan="6" class="empty">${term ? 'No bookings match your search.' : 'No bookings yet.'}</td></tr>`;
+        }
+        function renderOrders() {
+            const term = searchTerm();
+            const orders = ordersData.filter(o => [o.reference, o.guest, o.room, o.status, o.note, ...o.lines.map(line => line.name)].some(value => String(value || '').toLowerCase().includes(term)));
+            $('#orderCount').textContent = orders.length;
+            $('#ob').innerHTML = orders.length ? orders.map(o => {
+                const options = [o.status, ...(orderNext[o.status] || [])];
+                return `<tr><td><span class="table-ref">${e(o.reference)}</span></td><td><strong>${e(o.guest)}</strong><small class="table-sub">${o.room ? 'Room ' + e(o.room) : 'Restaurant pickup'}</small></td><td>${o.lines.map(l => `${e(l.qty)} × ${e(l.name)}`).join('<br>')}${o.note ? `<small class="table-sub">Note: ${e(o.note)}</small>` : ''}</td><td>${money(o.pricing.total)}</td><td><select data-o="${e(o.reference)}" data-current="${e(o.status)}" aria-label="Update order ${e(o.reference)}">${options.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td></tr>`;
+            }).join('') : `<tr><td colspan="5" class="empty">${term ? 'No kitchen orders match your search.' : 'No orders yet.'}</td></tr>`;
+        }
+        function renderMetrics() {
+            const today = localToday();
+            $('#metricBookings').textContent = bookingsData.length;
+            $('#metricArrivals').textContent = bookingsData.filter(b => b.checkIn === today && b.status === 'CONFIRMED').length;
+            $('#metricInHouse').textContent = bookingsData.filter(b => b.status === 'CHECKED_IN').length;
+            $('#metricOrders').textContent = ordersData.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status)).length;
+        }
         async function api(url, body) {
             const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: H(), body: body ? JSON.stringify(body) : undefined }), j = await r.json();
             if (!r.ok) throw new Error(j.error || 'Request failed.');
@@ -87,24 +110,18 @@
         }
         async function loadBookings() {
             const { bookings } = await api('/api/admin/bookings');
-            $('#t').hidden = false;
-            $('tbody').innerHTML = bookings.length ? bookings.map(b => {
-                const options = [b.status, ...(bookingNext[b.status] || [])];
-                return `<tr><td>${e(b.reference)}</td><td>${e(b.guest)}<br><small class="muted">${e(b.email)}</small></td><td>${e(b.roomName)} #${e(b.room)}</td><td>${e(b.checkIn)} to ${e(b.checkOut)}</td><td>${money(b.pricing.total)}</td><td><select data-r="${e(b.reference)}" data-current="${e(b.status)}" aria-label="Update booking ${e(b.reference)}">${options.map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></td></tr>`;
-            }).join('') : '<tr><td colspan="6" class="empty">No bookings yet.</td></tr>';
+            bookingsData = bookings;
+            renderBookings();
         }
         async function loadOrders() {
             const { orders } = await api('/api/admin/orders'), signature = JSON.stringify(orders);
-            $('#ot').hidden = false;
             if (signature === lastOrders) return;
             lastOrders = signature;
-            $('#ob').innerHTML = orders.length ? orders.map(o => {
-                const options = [o.status, ...(orderNext[o.status] || [])];
-                return `<tr><td>${e(o.reference)}</td><td>${e(o.guest)}<br><small class="muted">${o.room ? 'Room ' + e(o.room) : 'Pickup'}</small></td><td>${o.lines.map(l => `${e(l.qty)} x ${e(l.name)}`).join('<br>')}${o.note ? '<br><small class="muted">Note: ' + e(o.note) + '</small>' : ''}</td><td>${money(o.pricing.total)}</td><td><select data-o="${e(o.reference)}" data-current="${e(o.status)}" aria-label="Update order ${e(o.reference)}">${options.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td></tr>`;
-            }).join('') : '<tr><td colspan="5" class="empty">No orders yet.</td></tr>';
+            ordersData = orders;
+            renderOrders();
         }
         async function refresh() {
-            try { await Promise.all([loadBookings(), loadOrders()]); $('#m').textContent = ''; }
+            try { await Promise.all([loadBookings(), loadOrders()]); renderMetrics(); $('#dashboard').hidden = false; $('#m').textContent = ''; }
             catch (error) { $('#m').textContent = error.message; }
         }
         async function signIn(key) {
@@ -117,22 +134,23 @@
             } catch (error) { $('#m').textContent = error.message; }
         }
         $('#k').onsubmit = event => { event.preventDefault(); signIn($('#key').value); };
+        $('#dashboardFilter').oninput = () => { renderBookings(); renderOrders(); };
         $('#logout').onclick = async () => {
             try { await api('/api/admin/session/logout', {}); }
             catch (error) { $('#m').textContent = error.message; return; }
-            clearInterval(refreshTimer); $('#k').hidden = false; $('#logout').hidden = true; $('#t').hidden = true; $('#ot').hidden = true; $('#m').textContent = 'You have signed out.';
+            clearInterval(refreshTimer); $('#k').hidden = false; $('#logout').hidden = true; $('#dashboard').hidden = true; $('#m').textContent = 'You have signed out.';
         };
-        $('tbody').onchange = async event => {
+        $('#bookingRows').onchange = async event => {
             const select = event.target, previous = select.dataset.current;
             try {
                 await api(`/api/admin/bookings/${encodeURIComponent(select.dataset.r)}/status`, { status: select.value });
-                select.dataset.current = select.value; await loadBookings();
+                select.dataset.current = select.value; await loadBookings(); renderMetrics();
             } catch (error) { $('#m').textContent = error.message; select.value = previous || 'CONFIRMED'; }
         };
         $('#ob').onchange = async event => {
             const select = event.target;
             const previous = select.dataset.current;
-            try { await api(`/api/admin/orders/${encodeURIComponent(select.dataset.o)}/status`, { status: select.value }); select.dataset.current = select.value; lastOrders = ''; await loadOrders(); }
+            try { await api(`/api/admin/orders/${encodeURIComponent(select.dataset.o)}/status`, { status: select.value }); select.dataset.current = select.value; lastOrders = ''; await loadOrders(); renderMetrics(); }
             catch (error) { $('#m').textContent = error.message; select.value = previous; }
         };
         (async () => {

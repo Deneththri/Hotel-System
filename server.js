@@ -43,8 +43,8 @@ const load = () => {
   if (!d || typeof d !== 'object' || Array.isArray(d) || !Array.isArray(d.bookings) || !Array.isArray(d.types)) {
     throw new Error('The hotel data file has an invalid structure.');
   }
-  d.menu = d.menu || seed.menu; d.orders = d.orders || []; d.sales = d.sales || [];
-  if (!Array.isArray(d.menu) || !Array.isArray(d.orders) || !Array.isArray(d.sales)) throw new Error('The hotel data file has an invalid structure.');
+  d.menu = d.menu || seed.menu; d.orders = d.orders || [];
+  if (!Array.isArray(d.menu) || !Array.isArray(d.orders)) throw new Error('The hotel data file has an invalid structure.');
   return d;
 };
 const save = d => {
@@ -110,30 +110,18 @@ function sendEmail(b) { // Demo "email": saved as HTML in /outbox. Swap for SMTP
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-const ld = d => { d = new Date(d); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }; // local date
 function mailOrder(o, kind) {
-  if (!o.email) return; // POS walk-in orders have no email // Demo emails saved in /outbox. Swap for SMTP/SendGrid/SES in production.
+  if (!o.email) return;
   const ready = kind === 'ready', where = o.room ? `It is on its way to room ${o.room}.` : 'Please collect it at the restaurant.';
   const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:auto;padding:32px;background:#eaf1ef;color:#1e3b3f"><h1>${ready ? 'Your order is ready' : 'Order confirmed'}</h1><p>Dear ${esc(o.guest)}, ${ready ? where : 'we have received your order. We will email you when it is ready.'}</p><p><b>Order:</b> ${o.reference}<br>${o.lines.map(l => `${l.qty} x ${esc(l.name)}`).join('<br>')}<br><b>Total:</b> ${formatRs(o.pricing.total)}</p><p>Olu</p></div>`;
   fs.writeFileSync(path.join(OUT_DIR, `${o.reference}-${kind}.html`), html); console.log(`Order ${kind} email written: outbox/${o.reference}-${kind}.html`);
 }
 function setStatus(db, o, s) {
-  if (s === 'DELIVERED' && o.billingBookingRef) {
-    const b = db.bookings.find(x => x.reference === o.billingBookingRef);
-    const now = new Date().toISOString();
-    b.charges = b.charges || [];
-    b.charges.push({ orderRef: o.reference, at: now, desc: `Food order ${o.reference}`, amount: o.pricing.total });
-    db.sales.push({
-      id: makeReference('S', db.sales), orderRef: o.reference, at: now, lines: o.lines, discountPct: 0,
-      pricing: { subtotal: o.pricing.subtotal, discount: 0, tax: o.pricing.tax, total: o.pricing.total },
-      method: 'room', room: b.room, bookingRef: b.reference, change: 0
-    });
-  }
   o.status = s; o.history.push({ status: s, at: new Date().toISOString() });
   if (s === 'READY') mailOrder(o, 'ready');
 }
-const hasPendingRoomOrders = (db, bookingRef) => db.orders.some(o => o.billingBookingRef === bookingRef && !['DELIVERED', 'CANCELLED'].includes(o.status));
-const canCancelBooking = (db, booking) => !booking.settled && !(booking.charges || []).length && !hasPendingRoomOrders(db, booking.reference);
+const orderBookingRef = o => o.bookingRef || o.billingBookingRef;
+const hasPendingRoomOrders = (db, bookingRef) => db.orders.some(o => orderBookingRef(o) === bookingRef && !['DELIVERED', 'CANCELLED'].includes(o.status));
 
 function api(req, url, body) {
   const p = url.pathname, q = url.searchParams, m = req.method;
@@ -191,57 +179,11 @@ function api(req, url, body) {
     if (!b || b.email !== (q.get('email') || body.email || '').trim().toLowerCase()) return [404, { error: 'We could not find a booking with those details.' }];
     if (m === 'GET' && !r[2]) return [200, { booking: pub(b) }];
     if (m === 'POST' && r[2]) {
-      if (b.status !== 'CONFIRMED' || b.checkIn < today() || !canCancelBooking(db, b)) return [409, { error: 'This booking can no longer be cancelled online. Contact the front desk if you have an outstanding bill.' }];
+      if (b.status !== 'CONFIRMED' || b.checkIn < today() || hasPendingRoomOrders(db, b.reference)) return [409, { error: 'This booking can no longer be cancelled online. Resolve any pending room orders or contact the front desk.' }];
       b.status = 'CANCELLED'; save(db); return [200, { booking: pub(b) }];
     }
   }
   if (p.startsWith('/api/admin/')) {
-    // ---------- POS ----------
-    if (m === 'POST' && p === '/api/admin/pos/sale') {
-      const { items = [], method, bookingRef = '', discountPct = 0, tendered = 0 } = body;
-      if (!allowRequest(req, 'pos-sale', 60, 60 * 1000)) return [429, { error: 'Too many sales were submitted. Please wait and try again.' }];
-      if (!Array.isArray(items) || items.length > 50 || items.some(i => !i || !Number.isInteger(i.qty) || i.qty < 1 || i.qty > 50)) return [400, { error: 'The ticket contains invalid items or quantities.' }];
-      const lines = items.map(i => { const it = db.menu.find(x => x.id === i.id); return it ? { id: it.id, name: it.name, price: it.price, qty: i.qty } : null; });
-      if (lines.some(line => !line)) return [400, { error: 'The ticket contains an unavailable menu item.' }];
-      if (!lines.length) return [400, { error: 'The ticket is empty.' }];
-      if (!['cash', 'card', 'room'].includes(method)) return [400, { error: 'Choose a payment method.' }];
-      if (![0, 5, 10, 15, 20].includes(discountPct)) return [400, { error: 'Choose a valid discount.' }];
-      const disc = discountPct;
-      const sub = +lines.reduce((t, l) => t + l.price * l.qty, 0).toFixed(2), off = +(sub * disc / 100).toFixed(2), tax = +((sub - off) * TAX).toFixed(2), total = +(sub - off + tax).toFixed(2);
-      let b = null;
-      if (method === 'room') {
-        b = db.bookings.find(x => x.reference === bookingRef && ACTIVE.includes(x.status) && x.checkIn <= today() && today() < x.checkOut && !x.settled);
-        if (!b) return [400, { error: 'Pick a current, unsettled in-house guest to charge to a room.' }];
-      }
-      if (method === 'cash' && (typeof tendered !== 'number' || !Number.isFinite(tendered) || tendered < total)) return [400, { error: `Cash received is less than the total (${total.toFixed(2)}).` }];
-      const now = new Date().toISOString();
-      const sale = { id: makeReference('S', db.sales), at: now, lines, discountPct: disc, pricing: { subtotal: sub, discount: off, tax, total }, method, room: b ? b.room : null, bookingRef: b ? b.reference : null, change: method === 'cash' ? +(tendered - total).toFixed(2) : 0 };
-      db.sales.push(sale);
-      if (b) { b.charges = b.charges || []; b.charges.push({ saleId: sale.id, at: now, desc: lines.map(l => `${l.qty} x ${l.name}`).join(', '), amount: total }); }
-      db.orders.push({ reference: makeReference('FO', db.orders), status: 'RECEIVED', guest: b ? b.guest : 'Walk-in', email: '', room: b ? b.room : null, lines, note: 'POS ' + sale.id, pricing: { subtotal: sub, tax, total }, createdAt: now, history: [{ status: 'RECEIVED', at: now }] });
-      save(db); return [201, { sale }];
-    }
-    r = p.match(/^\/api\/admin\/bill\/([\w-]+)$/);
-    if (m === 'POST' && r) {
-      const b = db.bookings.find(x => x.reference === r[1]); if (!b) return [404, { error: 'Booking not found.' }];
-      if (b.settled) return [409, { error: 'This bill is already settled.' }];
-      if (!['cash', 'card'].includes(body.method)) return [400, { error: 'Choose cash or card.' }];
-      if (!['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'].includes(b.status)) return [409, { error: 'Only active or checked-out bookings can be settled.' }];
-      if (hasPendingRoomOrders(db, b.reference)) return [409, { error: 'Finish or cancel pending room orders before settling this bill.' }];
-      b.settled = { method: body.method, at: new Date().toISOString(), total: +(b.pricing.total + (b.charges || []).reduce((t, c) => t + c.amount, 0)).toFixed(2) };
-      save(db); return [200, { settled: b.settled }];
-    }
-    if (m === 'GET' && p === '/api/admin/report') {
-      const day = q.get('date') || ld(new Date()), sales = db.sales.filter(x => ld(x.at) === day), by = { cash: 0, card: 0, room: 0 }, top = {};
-      if (!validISODate(day)) return [400, { error: 'Please choose a valid report date.' }];
-      sales.forEach(x => { by[x.method] += x.pricing.total; x.lines.forEach(l => { top[l.name] = (top[l.name] || 0) + l.qty; }); });
-      const live = db.bookings.filter(b => !['CANCELLED', 'NO_SHOW'].includes(b.status));
-      return [200, {
-        date: day, count: sales.length, total: +(by.cash + by.card + by.room).toFixed(2), by, top: Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 5),
-        inHouse: live.filter(b => b.checkIn <= day && day < b.checkOut).length, totalRooms: db.types.reduce((t, x) => t + x.count, 0),
-        unsettled: +live.filter(b => !b.settled).reduce((t, b) => t + (b.charges || []).reduce((a, c) => a + c.amount, 0), 0).toFixed(2)
-      }];
-    }
     if (m === 'GET' && p === '/api/admin/orders') return [200, { orders: db.orders.slice().reverse() }];
     r = p.match(/^\/api\/admin\/orders\/([\w-]+)\/status$/);
     if (m === 'POST' && r) {
@@ -249,9 +191,9 @@ function api(req, url, body) {
       if (!o || !['RECEIVED', 'PREPARING', 'READY', 'DELIVERED', 'CANCELLED'].includes(body.status)) return [400, { error: 'Invalid request.' }];
       const transitions = { RECEIVED: ['PREPARING', 'CANCELLED'], PREPARING: ['READY'], READY: ['DELIVERED'], DELIVERED: [], CANCELLED: [] };
       if (o.status !== body.status && !transitions[o.status]?.includes(body.status)) return [409, { error: `An order cannot move from ${o.status} to ${body.status}.` }];
-      if (o.status !== body.status && body.status === 'DELIVERED' && o.billingBookingRef) {
-        const booking = db.bookings.find(x => x.reference === o.billingBookingRef);
-        if (!booking || booking.settled || !['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'].includes(booking.status)) return [409, { error: 'This guest bill cannot accept the room order. Contact the front desk.' }];
+      if (o.status !== body.status && body.status === 'DELIVERED' && orderBookingRef(o)) {
+        const booking = db.bookings.find(x => x.reference === orderBookingRef(o));
+        if (!booking || !['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'].includes(booking.status)) return [409, { error: 'This room order is no longer linked to an active guest booking. Contact the front desk.' }];
       }
       if (o.status !== body.status) setStatus(db, o, body.status); save(db); return [200, { order: o }];
     }
@@ -262,7 +204,7 @@ function api(req, url, body) {
       if (!b || !['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW'].includes(body.status)) return [400, { error: 'Invalid request.' }];
       const transitions = { CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'], CHECKED_IN: ['CHECKED_OUT'], CHECKED_OUT: [], CANCELLED: [], NO_SHOW: [] };
       if (b.status !== body.status && !transitions[b.status]?.includes(body.status)) return [409, { error: `A booking cannot move from ${b.status} to ${body.status}.` }];
-      if (b.status !== body.status && ['CANCELLED', 'NO_SHOW'].includes(body.status) && !canCancelBooking(db, b)) return [409, { error: 'Resolve or settle outstanding room charges before cancelling this booking.' }];
+      if (b.status !== body.status && ['CANCELLED', 'NO_SHOW'].includes(body.status) && hasPendingRoomOrders(db, b.reference)) return [409, { error: 'Resolve pending room orders before cancelling this booking.' }];
       b.status = body.status; save(db); return [200, { booking: b }];
     }
   }
@@ -280,13 +222,13 @@ function api(req, url, body) {
     if (!lines.length) return [400, { error: 'Your order is empty. Add something from the menu.' }];
     let room = null;
     if (bookingRef.trim()) {
-      const b = db.bookings.find(x => x.reference === bookingRef.trim().toUpperCase() && x.email === email.trim().toLowerCase() && ACTIVE.includes(x.status) && x.checkIn <= today() && today() < x.checkOut && !x.settled);
+      const b = db.bookings.find(x => x.reference === bookingRef.trim().toUpperCase() && x.email === email.trim().toLowerCase() && ACTIVE.includes(x.status) && x.checkIn <= today() && today() < x.checkOut);
       if (!b) return [400, { error: 'That booking reference and email do not match an in-house booking. Check them, or clear the reference to collect at the restaurant.' }];
       room = b.room;
     }
     const sub = +lines.reduce((s, l) => s + l.price * l.qty, 0).toFixed(2), tax = +(sub * TAX).toFixed(2), now = new Date().toISOString();
     const o = {
-      reference: makeReference('FO', db.orders), status: 'RECEIVED', guest: name.trim(), email: email.trim().toLowerCase(), room, billingBookingRef: room ? bookingRef.trim().toUpperCase() : null, lines,
+      reference: makeReference('FO', db.orders), status: 'RECEIVED', guest: name.trim(), email: email.trim().toLowerCase(), room, bookingRef: room ? bookingRef.trim().toUpperCase() : null, lines,
       note: String(note).slice(0, 300), pricing: { subtotal: sub, tax, total: +(sub + tax).toFixed(2) }, createdAt: now, history: [{ status: 'RECEIVED', at: now }]
     };
     db.orders.push(o); save(db); mailOrder(o, 'confirmed'); return [201, { order: o }];

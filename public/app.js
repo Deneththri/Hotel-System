@@ -5,6 +5,20 @@ const fmtDate = s => new Date(s + 'T00:00').toLocaleDateString(undefined, { week
 let rooms = [], query = {};
 async function api(url, opts) { const r = await fetch(url, opts && { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opts) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; }
 
+const revealItems = document.querySelectorAll('[data-reveal]');
+if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  const revealObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.14, rootMargin: '0px 0px -32px 0px' });
+  document.body.classList.add('has-reveal-motion');
+  revealItems.forEach(item => revealObserver.observe(item));
+}
+
 const roomTrack = $('#rooms'), roomCarousel = $('.room-carousel');
 const roomPrev = $('.room-arrow-prev'), roomNext = $('.room-arrow-next');
 function updateRoomCarousel() {
@@ -53,15 +67,33 @@ function renderRooms() {
 $('#rooms').onclick = e => { const id = e.target.dataset.id; if (id) openBooking(rooms.find(r => r.id === id)); };
 
 const modal = $('#modal'), body = $('#sheetBody');
+let returnFocus = null;
 const open = html => {
+  if (modal.hidden) returnFocus = document.activeElement;
   body.innerHTML = html;
   const title = body.querySelector('h3');
   if (title) { title.id = 'sheetTitle'; modal.setAttribute('aria-labelledby', 'sheetTitle'); }
   else modal.removeAttribute('aria-labelledby');
   modal.hidden = false; document.body.style.overflow = 'hidden';
+  const firstControl = body.querySelector('input:not([type="hidden"]), select, textarea, button:not(.x)');
+  (firstControl || $('#close')).focus();
 };
-const close = () => { modal.hidden = true; document.body.style.overflow = ''; };
-$('#close').onclick = close; modal.onclick = e => { if (e.target === modal) close(); }; document.onkeydown = e => { if (e.key === 'Escape') close(); };
+const close = () => {
+  modal.hidden = true; document.body.style.overflow = '';
+  if (returnFocus && returnFocus.isConnected) returnFocus.focus();
+  returnFocus = null;
+};
+$('#close').onclick = close; modal.onclick = e => { if (e.target === modal) close(); };
+document.addEventListener('keydown', e => {
+  if (modal.hidden) return;
+  if (e.key === 'Escape') { close(); return; }
+  if (e.key !== 'Tab') return;
+  const controls = [...modal.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href]')].filter(el => !el.closest('[hidden]'));
+  if (!controls.length) return;
+  const first = controls[0], last = controls[controls.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
 const menuToggle = $('.menu-toggle'), mainNav = $('#mainNav');
 menuToggle.onclick = () => {
   const expanded = menuToggle.getAttribute('aria-expanded') === 'true';
@@ -143,7 +175,7 @@ function openCheckout() {
   const sub = cartSub(), tax = +(sub * 0.12).toFixed(2);
   open(`<h3>Your order</h3><div class="sum">${cartLines().map(l => `<div><span>${l.qty} x ${esc(l.name)}</span><span>${money(l.price * l.qty)}</span></div>`).join('')}<div><span>Taxes (12%)</span><span>${money(tax)}</span></div><div class="tot"><span>Total</span><span>${money(sub + tax)}</span></div></div>
   <form class="form" id="oform"><div class="two"><label>Full name<input name="name" maxlength="80" required value="${esc(ctx.name || '')}"></label><label>Email<input name="email" type="email" maxlength="254" required value="${esc(ctx.email || '')}"></label></div>
-  <label>Booking reference (optional)<input name="bookingRef" maxlength="32" placeholder="OL-..." value="${esc(ctx.ref || '')}"></label><p class="hint">Add it for room delivery; the charge is added to your guest bill when delivered. Leave it empty to collect at the restaurant.</p>
+  <label>Booking reference (optional)<input name="bookingRef" maxlength="32" placeholder="OL-..." value="${esc(ctx.ref || '')}"></label><p class="hint">Add it for delivery to your room. Leave it empty to collect at the restaurant.</p>
   <label>Notes for the kitchen<textarea name="note" rows="2" maxlength="300" placeholder="Allergies, spice level..."></textarea></label>
   <p class="msg" id="omsg" role="alert"></p><button class="btn" id="obtn">Place order</button></form>`);
   $('#oform').onsubmit = async e => {

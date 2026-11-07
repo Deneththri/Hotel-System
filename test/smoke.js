@@ -78,11 +78,6 @@ function dateOffset(days) {
   return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
 }
 
-function localDate() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
 async function main() {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'olu-hotel-smoke-'));
   let running;
@@ -108,7 +103,10 @@ async function main() {
     assert.ok(cookieHeader.includes('SameSite=Strict'));
     const cookie = cookieHeader.split(';')[0];
     assert.strictEqual((await request(port, 'GET', '/api/admin/bookings', undefined, cookie)).status, 200);
-    assert.strictEqual((await request(port, 'POST', '/api/admin/pos/sale', {}, undefined)).status, 401);
+    assert.strictEqual((await request(port, 'GET', '/pos.html')).status, 404);
+    assert.strictEqual((await request(port, 'POST', '/api/admin/pos/sale', {}, cookie)).status, 404);
+    assert.strictEqual((await request(port, 'POST', '/api/admin/bill/test-reference', {}, cookie)).status, 404);
+    assert.strictEqual((await request(port, 'GET', '/api/admin/report', undefined, cookie)).status, 404);
     assert.strictEqual((await request(port, 'POST', '/api/bookings', 'not-json')).status, 400);
     assert.strictEqual((await request(port, 'POST', '/api/bookings', { name: 'Test' }, undefined, 'text/plain')).status, 415);
 
@@ -128,10 +126,10 @@ async function main() {
     assert.strictEqual((await request(port, 'GET', `/api/bookings/${booking.reference}?email=wrong%40example.com`)).status, 404);
     assert.strictEqual((await request(port, 'POST', `/api/admin/bookings/${booking.reference}/status`, { status: 'CHECKED_OUT' }, cookie)).status, 409);
 
-    const futureRoomCharge = await request(port, 'POST', '/api/orders', {
+    const futureRoomOrder = await request(port, 'POST', '/api/orders', {
       name: 'Smoke Guest', email: 'guest@example.com', bookingRef: booking.reference, items: [{ id: 'soup', qty: 1 }]
     });
-    assert.strictEqual(futureRoomCharge.status, 400);
+    assert.strictEqual(futureRoomOrder.status, 400);
     const invalidQuantity = await request(port, 'POST', '/api/orders', {
       name: 'Smoke Guest', email: 'guest@example.com', items: [{ id: 'soup', qty: 1.5 }]
     });
@@ -158,30 +156,19 @@ async function main() {
     });
     assert.strictEqual(roomOrderResponse.status, 201);
     const roomOrder = roomOrderResponse.body.order;
-    assert.strictEqual((await request(port, 'POST', `/api/admin/bill/${inHouseBooking.reference}`, { method: 'cash' }, cookie)).status, 409);
     assert.strictEqual((await request(port, 'POST', `/api/admin/orders/${roomOrder.reference}/status`, { status: 'PREPARING' }, cookie)).status, 200);
     assert.strictEqual((await request(port, 'POST', `/api/admin/orders/${roomOrder.reference}/status`, { status: 'READY' }, cookie)).status, 200);
     assert.strictEqual((await request(port, 'POST', `/api/admin/orders/${roomOrder.reference}/status`, { status: 'DELIVERED' }, cookie)).status, 200);
     const updatedBookings = await request(port, 'GET', '/api/admin/bookings', undefined, cookie);
     const updatedRoomBooking = updatedBookings.body.bookings.find(item => item.reference === inHouseBooking.reference);
-    assert.strictEqual(updatedRoomBooking.charges.length, 1);
-    assert.strictEqual(updatedRoomBooking.charges[0].amount, 10.08);
-    const report = await request(port, 'GET', `/api/admin/report?date=${localDate()}`, undefined, cookie);
-    assert.ok(report.body.by.room >= 10.08);
-    const settled = await request(port, 'POST', `/api/admin/bill/${inHouseBooking.reference}`, { method: 'cash' }, cookie);
-    assert.strictEqual(settled.status, 200);
-    assert.strictEqual(settled.body.settled.total, Number((inHouseBooking.pricing.total + 10.08).toFixed(2)));
-    assert.strictEqual((await request(port, 'POST', `/api/admin/bookings/${inHouseBooking.reference}/status`, { status: 'CANCELLED' }, cookie)).status, 409);
-    assert.strictEqual((await request(port, 'POST', '/api/orders', {
+    assert.strictEqual(updatedRoomBooking.charges, undefined);
+    assert.strictEqual(updatedRoomBooking.settled, undefined);
+    const additionalRoomOrder = await request(port, 'POST', '/api/orders', {
       name: 'Room Guest', email: 'room@example.com', bookingRef: inHouseBooking.reference, items: [{ id: 'soup', qty: 1 }]
-    })).status, 400);
-
-    const badSale = await request(port, 'POST', '/api/admin/pos/sale', { items: [{ id: 'soup', qty: 1 }], method: 'cash', discountPct: 25, tendered: 20 }, cookie);
-    assert.strictEqual(badSale.status, 400);
-    const sale = await request(port, 'POST', '/api/admin/pos/sale', { items: [{ id: 'soup', qty: 1 }], method: 'cash', tendered: 20 }, cookie);
-    assert.strictEqual(sale.status, 201);
-    assert.ok(sale.body.sale.change > 0);
-    assert.strictEqual((await request(port, 'GET', '/api/admin/report?date=not-a-date', undefined, cookie)).status, 400);
+    });
+    assert.strictEqual(additionalRoomOrder.status, 201);
+    assert.strictEqual((await request(port, 'POST', `/api/orders/${additionalRoomOrder.body.order.reference}/cancel`, { email: 'room@example.com' })).status, 200);
+    assert.strictEqual((await request(port, 'POST', `/api/admin/bookings/${inHouseBooking.reference}/status`, { status: 'CANCELLED' }, cookie)).status, 200);
 
     assert.strictEqual((await request(port, 'POST', '/api/admin/session/logout', {}, cookie)).status, 200);
     assert.strictEqual((await request(port, 'GET', '/api/admin/bookings', undefined, cookie)).status, 401);
