@@ -65,7 +65,7 @@ function renderRooms() {
   roomTrack.scrollLeft = 0;
   const listings = rooms.flatMap(type => type.units.map(unit => ({ ...type, unit })));
   const availableCount = listings.filter(listing => listing.unit.available).length;
-  $('#roomResultsMeta').textContent = `${availableCount} of ${listings.length} rooms available for your dates · Use the arrows or keyboard to browse`;
+  $('#roomResultsMeta').textContent = '';
   roomTrack.setAttribute('aria-label', `${listings.length} rooms and suites; ${availableCount} available`);
   roomTrack.classList.toggle('is-short-list', listings.length > 0 && listings.length <= 2);
   roomTrack.innerHTML = listings.length ? listings.map((r, i) => `<article class="card room ${esc(r.tone)}${r.unit.available ? '' : ' is-booked'}" data-reveal style="--room-delay:${i % 3 * .11}s">

@@ -1298,9 +1298,10 @@ body {
         radial-gradient(ellipse 70% 13% at 50% 89%, rgba(231, 238, 222, .58), transparent 76%),
         radial-gradient(ellipse 52% 17% at 5% 63%, rgba(79, 116, 84, .2), transparent 72%),
         radial-gradient(ellipse 48% 16% at 97% 60%, rgba(83, 119, 89, .18), transparent 72%),
-        linear-gradient(180deg, #f8f7f2 0%, #edf0e7 38%, #dce8df 64%, #b4cbc0 82%, #9bb9b1 100%);
+        linear-gradient(180deg, rgba(248, 247, 242, .76) 0%, rgba(237, 240, 231, .7) 38%, rgba(220, 232, 223, .62) 64%, rgba(180, 203, 192, .54) 82%, rgba(155, 185, 177, .48) 100%),
+        url("images/garden.png") center / cover no-repeat;
     background-attachment: fixed;
-    background-size: 100% 100vh;
+    background-size: 100% 100vh, 100% 100vh, 100% 100vh, 100% 100vh, cover;
 }
 
 .orb {
@@ -1661,7 +1662,7 @@ h2 {
 }
 
 .t1 .art-panel-main {
-    background-image: url("images/garden.png");
+    background-image: url("images/aurelia-bg.jpg");
     background-position: center 56%;
 }
 
@@ -1702,7 +1703,7 @@ h2 {
 }
 
 .t3 .art-panel-detail {
-    background-image: url("images/garden.png");
+    background-image: url("images/aurelia-bg.jpg");
     background-position: 80% center;
 }
 
@@ -2618,7 +2619,8 @@ footer a {
 body:not(.landing-page) {
     background:
         radial-gradient(ellipse at 100% 0, rgba(186, 163, 116, .12), transparent 32rem),
-        linear-gradient(145deg, #f5f2e9, #e8eee8 72%, #e0e9e2);
+        linear-gradient(145deg, rgba(245, 242, 233, .88), rgba(232, 238, 232, .82) 72%, rgba(224, 233, 226, .78)),
+        url("images/aurelia-bg.jpg") center / cover fixed no-repeat;
 }
 
 body:not(.landing-page) .nav {
@@ -2676,7 +2678,9 @@ body:not(.landing-page) .wrap tbody tr:hover {
 }
 
 .landing-page {
-    background: #f5f2e9;
+    background:
+        linear-gradient(180deg, rgba(245, 242, 233, .52), rgba(245, 242, 233, .32)),
+        url("images/aurelia-bg.jpg") center / cover fixed no-repeat;
     color: var(--ink);
 }
 
@@ -3249,13 +3253,26 @@ body:not(.landing-page) .wrap tbody tr:hover {
 }
 
 .landing-page .journey-photo {
+    position: relative;
     width: 100%;
     height: clamp(135px, 15vw, 180px);
     overflow: hidden;
     background: #d7d1c1;
 }
 
+.landing-page .journey-photo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, .12), rgba(20, 31, 28, .06)),
+        url("images/garden.png") center 55% / cover no-repeat;
+    opacity: .7;
+}
+
 .landing-page .journey-photo img {
+    position: relative;
+    z-index: 1;
     display: block;
     width: 100%;
     height: 100%;
