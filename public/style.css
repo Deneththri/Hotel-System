@@ -201,7 +201,8 @@ body {
     font-size: .74rem;
     font-weight: 700;
     color: var(--gold);
-    margin: 0 0 20px
+    margin: 0 0 20px;
+    
 }
 
 .hero-title {
@@ -2164,8 +2165,9 @@ footer {
     line-height: .83;
 }
 
-.hero-title span:last-child {
+.hero-title .hero-accent {
     color: var(--gold);
+    font-style: normal;
 }
 
 .hero-copy .lead {
@@ -2773,8 +2775,8 @@ body:not(.landing-page) .wrap tbody tr:hover {
     color: #fffaf0;
 }
 
-.landing-page .hero-title span:last-child {
-    color: #f5c76e;
+.landing-page .hero-title .hero-accent {
+    color: var(--gold);
 }
 
 .landing-page .hero-copy .lead {
@@ -3203,7 +3205,109 @@ body:not(.landing-page) .wrap tbody tr:hover {
 }
 
 .landing-page .journey-step {
-    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid rgba(157, 139, 103, .2);
+    border-radius: 170px;
+    background: rgba(255, 253, 248, .9);
+    box-shadow: 0 16px 38px -30px rgba(27, 55, 44, .42);
+    text-align: center;
+}
+
+.landing-page .journey-section {
+    overflow: hidden;
+    border-radius: 14px;
+}
+
+.landing-page .journey-section .section-heading {
+    width: 100%;
+    max-width: 860px;
+    margin-bottom: 30px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}
+
+.landing-page .journey-section .section-heading .muted {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.landing-page .journey-section .section-heading .eyebrow {
+    color: #a7834c;
+}
+
+.landing-page .journey-track {
+    gap: 20px;
+}
+
+.landing-page .journey-track::before {
+    display: none;
+}
+
+.landing-page .journey-photo {
+    width: 100%;
+    height: clamp(135px, 15vw, 180px);
+    overflow: hidden;
+    background: #d7d1c1;
+}
+
+.landing-page .journey-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform .6s cubic-bezier(.2, .7, .2, 1);
+}
+
+.landing-page .journey-step:hover .journey-photo img {
+    transform: scale(1.05);
+}
+
+.landing-page .journey-number {
+    z-index: 1;
+    width: 50px;
+    height: 50px;
+    flex: 0 0 50px;
+    align-self: center;
+    margin: -25px 0 0;
+    border: 2px solid #d6bd8b;
+    background: #19372f;
+    color: #f4dfae;
+    box-shadow: 0 4px 12px rgba(25, 55, 47, .2);
+    font-size: .75rem;
+}
+
+.landing-page .journey-copy {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 16px 17px;
+}
+
+.landing-page .journey-step h3 {
+    margin: 0 0 6px;
+    color: #20372f;
+    font-size: 1.35rem;
+}
+
+.landing-page .journey-step p {
+    max-width: 235px;
+    color: #66746b;
+    font-size: .72rem;
+    line-height: 1.55;
+}
+
+.landing-page .journey-arrow {
+    margin-top: auto;
+    padding-top: 10px;
+    color: #b58e55;
+    font-size: 1.15rem;
+    line-height: 1;
 }
 
 .landing-page .main-nav a {
@@ -3746,5 +3850,420 @@ body:not(.landing-page) .wrap tbody tr:hover {
     .welcome-mark {
         animation: none !important;
         transition: none !important;
+    }
+}
+
+.landing-page .stay-section {
+    overflow: hidden;
+}
+
+.landing-page .room-track {
+    grid-auto-columns: calc((100% - 48px) / 3);
+    gap: 24px;
+    padding: 8px 4px 28px;
+    scroll-padding-inline: 4px;
+}
+
+.landing-page .room {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(157, 139, 103, .23);
+    border-radius: 8px;
+    background: #fffdf8;
+    box-shadow: 0 18px 48px -36px rgba(27, 55, 44, .45);
+    transition: transform .45s cubic-bezier(.2, .7, .2, 1), box-shadow .45s ease, border-color .3s ease;
+}
+
+.landing-page .room:hover {
+    transform: translateY(-7px);
+    border-color: rgba(179, 148, 98, .5);
+    box-shadow: 0 28px 54px -34px rgba(27, 55, 44, .55);
+}
+
+.landing-page .room .art {
+    position: relative;
+    display: block;
+    height: clamp(185px, 16vw, 220px);
+    overflow: hidden;
+    background: #32473c;
+    isolation: isolate;
+}
+
+.landing-page .room .art::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    display: block;
+    background: linear-gradient(180deg, rgba(14, 26, 20, .06) 34%, rgba(14, 26, 20, .65) 100%);
+    content: "";
+    pointer-events: none;
+}
+
+.landing-page .room .art-panel {
+    position: absolute;
+    z-index: 0;
+    display: block;
+    background-repeat: no-repeat;
+    background-size: cover;
+    transition: transform .8s cubic-bezier(.2, .7, .2, 1), box-shadow .5s ease;
+}
+
+.landing-page .room .art-panel-main {
+    inset: 0;
+    background-position: center 54%;
+}
+
+.landing-page .t1 .art-panel-main {
+    background-position: center 55%;
+}
+
+.landing-page .t2 .art-panel-main {
+    background-position: 76% center;
+}
+
+.landing-page .t3 .art-panel-main {
+    background-position: 88% center;
+}
+
+.landing-page .room .art-panel-view,
+.landing-page .room .art-panel-detail {
+    z-index: 2;
+    right: 20px;
+    width: 25%;
+    height: 36%;
+    border: 3px solid rgba(255, 253, 248, .92);
+    border-radius: 5px;
+    box-shadow: 0 12px 30px rgba(14, 26, 20, .3);
+}
+
+.landing-page .room .art-panel-view {
+    bottom: 20px;
+    background-position: 12% center;
+    transform: rotate(3deg);
+}
+
+.landing-page .room .art-panel-detail {
+    right: calc(25% + 30px);
+    bottom: 24px;
+    width: 22%;
+    height: 30%;
+    background-position: 55% center;
+    transform: rotate(-3deg);
+}
+
+.landing-page .t1 .art-panel-view,
+.landing-page .t3 .art-panel-detail {
+    background-image: url("images/garden.png");
+}
+
+.landing-page .t2 .art-panel-detail {
+    background-image: url("images/garden.png");
+    background-position: 80% center;
+}
+
+.landing-page .room:hover .art-panel-main {
+    transform: scale(1.055);
+}
+
+.landing-page .room:hover .art-panel-view {
+    transform: translateY(-7px) rotate(1deg);
+}
+
+.landing-page .room:hover .art-panel-detail {
+    transform: translateY(-4px) rotate(-1deg);
+}
+
+.room-number {
+    position: absolute;
+    z-index: 2;
+    bottom: 17px;
+    left: 21px;
+    color: rgba(255, 253, 248, .76);
+    font: 500 1.75rem/1 var(--serif);
+    letter-spacing: .05em;
+}
+
+.landing-page .room .badge {
+    position: absolute;
+    z-index: 4;
+    top: 20px;
+    right: 20px;
+    padding: 8px 11px;
+    border: 1px solid rgba(255, 255, 255, .46);
+    border-radius: 999px;
+    background: rgba(255, 253, 248, .93);
+    color: #66583e;
+    font-size: .62rem;
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(14, 26, 20, .12);
+}
+
+.landing-page .room.is-booked {
+    border-color: rgba(130, 126, 112, .3);
+}
+
+.landing-page .room.is-booked .art-panel-main {
+    filter: grayscale(.7) brightness(.78);
+}
+
+.landing-page .room.is-booked:hover {
+    transform: translateY(-2px);
+}
+
+.landing-page .room .booked-badge {
+    border-color: rgba(255, 255, 255, .55);
+    background: #f0eee7;
+    color: #5f665f;
+}
+
+.landing-page .room .body {
+    padding: 17px 19px 18px;
+}
+
+.room-overline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    color: #91794d;
+    font-size: .59rem;
+    font-weight: 700;
+    letter-spacing: .13em;
+}
+
+.room-overline span {
+    color: #c4b38e;
+}
+
+.landing-page .room .body h3 {
+    margin: 0;
+    color: #243a30;
+    font: 600 clamp(1.55rem, 2.1vw, 1.9rem)/1.05 var(--serif);
+    letter-spacing: -.015em;
+}
+
+.landing-page .room .body > p:not(.room-overline) {
+    min-height: 35px;
+    margin: 6px 0 9px;
+    color: #748078;
+    font-size: .76rem;
+    line-height: 1.65;
+}
+
+.landing-page .room .chips {
+    gap: 6px;
+    min-height: 20px;
+}
+
+.landing-page .room .chips span {
+    padding: 4px 7px;
+    border: 1px solid #e8e5da;
+    border-radius: 999px;
+    background: #fbfaf6;
+    color: #68766d;
+    font-size: .58rem;
+}
+
+.landing-page .room .foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 9px;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid #ece9df;
+}
+
+.landing-page .room .price b {
+    color: #243a30;
+    font: 600 1.35rem/1 var(--serif);
+}
+
+.landing-page .room .price small {
+    color: #7d887f;
+    font-size: .59rem;
+}
+
+.landing-page .room .room-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 40px;
+    padding: 0 11px;
+    border: 1px solid #d5bd8d;
+    border-radius: 3px;
+    background: #19372f;
+    color: #fffaf0;
+    font-size: .63rem;
+    letter-spacing: .01em;
+    white-space: nowrap;
+}
+
+.landing-page .room .room-cta span {
+    display: inline-block;
+    color: #dfc58e;
+    transition: transform .2s ease;
+}
+
+.landing-page .room .room-cta:hover span {
+    transform: translateX(4px);
+}
+
+.landing-page .room .room-cta:disabled {
+    cursor: not-allowed;
+    opacity: .58;
+    transform: none;
+}
+
+.landing-page.has-reveal-motion .room-track [data-reveal] {
+    transition-delay: var(--room-delay, 0s);
+}
+
+.landing-page:not(.has-reveal-motion) .room-track .room {
+    animation: room-arrive .7s cubic-bezier(.2, .7, .2, 1) both;
+    animation-delay: var(--room-delay, 0s);
+}
+
+@keyframes room-arrive {
+    from { opacity: 0; transform: translateY(20px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media(max-width:760px) {
+    .landing-page .room-track {
+        grid-auto-columns: minmax(86%, 1fr);
+        gap: 16px;
+        padding-right: 4px;
+        padding-bottom: 22px;
+    }
+
+    .landing-page .room .art {
+        height: clamp(180px, 50vw, 220px);
+    }
+
+    .landing-page .room .body {
+        padding: 16px;
+    }
+}
+
+.landing-page .room-track.is-short-list {
+    grid-auto-columns: calc((100% - 24px) / 2);
+}
+
+@media(max-width:760px) {
+    .landing-page .room-track.is-short-list {
+        grid-auto-columns: minmax(86%, 1fr);
+    }
+}
+
+@media(min-width:761px) and (max-width:1100px) {
+    .landing-page .room-track {
+        grid-auto-columns: calc((100% - 36px) / 3);
+        gap: 18px;
+    }
+}
+
+@media(max-width:420px) {
+    .landing-page .room-track {
+        grid-auto-columns: 94%;
+    }
+
+    .landing-page .room-track.is-short-list {
+        grid-auto-columns: 94%;
+    }
+
+    .landing-page .room .art-panel-view,
+    .landing-page .room .art-panel-detail {
+        right: 14px;
+        width: 25%;
+    }
+
+    .landing-page .room .art-panel-detail {
+        right: calc(25% + 22px);
+    }
+
+    .landing-page .room .foot {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .landing-page .room .room-cta {
+        width: 100%;
+    }
+}
+
+@media(prefers-reduced-motion:reduce) {
+    .landing-page .room,
+    .landing-page .room .art-panel,
+    .landing-page .room .room-cta span {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+@media (min-width:761px) and (max-width:920px) {
+    .landing-page .nav {
+        padding: 12px 18px;
+    }
+
+    .landing-page .nav .brand {
+        font-size: 1.8rem;
+    }
+
+    .landing-page .nav .booking-pill {
+        margin-left: auto;
+        padding: 11px 14px;
+        font-size: .7rem;
+    }
+
+    .landing-page .nav .menu-toggle {
+        display: inline-flex;
+        width: 42px;
+        height: 42px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: transparent;
+        font-size: 1.3rem;
+    }
+
+    .landing-page .nav .main-nav {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 14px;
+        left: 14px;
+        display: none;
+        align-items: stretch;
+        gap: 0;
+        padding: 8px 18px;
+        border: 1px solid #e8e7df;
+        background: #fbfaf6;
+        box-shadow: 0 18px 36px -24px rgba(32, 53, 44, .6);
+    }
+
+    .landing-page .nav .main-nav.open {
+        display: grid;
+    }
+
+    .landing-page .nav .main-nav a {
+        padding: 13px 0;
+        border-bottom: 1px solid #ecebe3;
+        font-size: .85rem;
+    }
+
+    .landing-page .nav .main-nav a:last-child {
+        border-bottom: 0;
+    }
+
+    .landing-page .nav .main-nav a::after {
+        display: none;
+    }
+}
+
+@media (min-width:761px) and (max-width:920px) {
+    .landing-page .room-track {
+        grid-auto-columns: calc((100% - 24px) / 2);
+        gap: 24px;
     }
 }

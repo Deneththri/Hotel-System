@@ -150,10 +150,15 @@ function api(req, url, body) {
     const i = q.get('checkIn'), o = q.get('checkOut'), g = q.has('guests') ? Number(q.get('guests')) : 1, err = checkDates(i, o); if (err) return [400, { error: err }];
     if (!Number.isInteger(g) || g < 1 || g > 20) return [400, { error: 'Please choose a valid number of guests.' }];
     const n = nights(i, o);
-    return [200, { rooms: db.types.filter(t => t.capacity >= g).map(t => ({ ...t, left: freeRooms(db, t, i, o).length, pricing: price(t, n) })) }];
+    return [200, { rooms: db.types.filter(t => t.capacity >= g).map(t => {
+      const taken = takenRooms(db, t, i, o);
+      const units = Array.from({ length: t.count }, (_, k) => t.base + k + 1)
+        .map(number => ({ number, available: !taken.includes(number) }));
+      return { ...t, left: units.filter(unit => unit.available).length, units, pricing: price(t, n) };
+    }) }];
   }
   if (m === 'POST' && p === '/api/bookings') {
-    const { typeId, checkIn, checkOut, name, email, phone, guests = 1, requests = '', payment = 'pay_at_hotel' } = body;
+    const { typeId, checkIn, checkOut, name, email, phone, guests = 1, requests = '', payment = 'pay_at_hotel', roomNumber } = body;
     if (!allowRequest(req, 'booking-create', 10, 60 * 1000)) return [429, { error: 'Too many booking attempts. Please wait a moment and try again.' }];
     const err = checkDates(checkIn, checkOut); if (err) return [400, { error: err }];
     const t = db.types.find(x => x.id === typeId); if (!t) return [400, { error: 'Please choose a room.' }];
@@ -165,8 +170,10 @@ function api(req, url, body) {
     if (payment !== 'pay_at_hotel') return [400, { error: 'Online payments are not available. Please pay at the hotel.' }];
     const free = freeRooms(db, t, checkIn, checkOut); // single-threaded: check + write is atomic
     if (!free.length) return [409, { error: 'Sorry, that room was just taken. Please pick other dates or a different room.' }];
+    if (roomNumber !== undefined && !Number.isInteger(roomNumber)) return [400, { error: 'Please choose a valid room.' }];
+    if (roomNumber !== undefined && !free.includes(roomNumber)) return [409, { error: 'That room is no longer available for these dates. Please choose another room.' }];
     const b = {
-      reference: makeReference('OL', db.bookings), status: 'CONFIRMED', typeId, roomName: t.name, room: free[0],
+      reference: makeReference('OL', db.bookings), status: 'CONFIRMED', typeId, roomName: t.name, room: roomNumber === undefined ? free[0] : roomNumber,
       guest: name.trim().slice(0, 80), email: email.trim().toLowerCase(), phone: String(phone || '').slice(0, 30), requests: String(requests).slice(0, 400),
       checkIn, checkOut, guests, pricing: price(t, nights(checkIn, checkOut)), payment: 'PAY AT HOTEL', createdAt: new Date().toISOString()
     };

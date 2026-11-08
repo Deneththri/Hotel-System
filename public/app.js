@@ -6,8 +6,9 @@ let rooms = [], query = {};
 async function api(url, opts) { const r = await fetch(url, opts && { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(opts) }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Request failed'); return j; }
 
 const revealItems = document.querySelectorAll('[data-reveal]');
+let revealObserver = null;
 if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-  const revealObserver = new IntersectionObserver((entries, observer) => {
+  revealObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('is-visible');
@@ -39,6 +40,12 @@ function scrollRooms(direction) {
 roomPrev.onclick = () => scrollRooms(-1);
 roomNext.onclick = () => scrollRooms(1);
 roomTrack.addEventListener('scroll', updateRoomCarousel, { passive: true });
+roomTrack.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    scrollRooms(e.key === 'ArrowLeft' ? -1 : 1);
+  }
+});
 window.addEventListener('resize', updateRoomCarousel);
 
 $('#checkIn').min = iso(new Date()); $('#checkIn').value = iso(addDays(new Date(), 1)); $('#checkOut').min = iso(addDays(new Date(), 2)); $('#checkOut').value = iso(addDays(new Date(), 3));
@@ -56,15 +63,29 @@ $('#search').onsubmit = async e => {
 };
 function renderRooms() {
   roomTrack.scrollLeft = 0;
-  roomTrack.innerHTML = rooms.length ? rooms.map((r, i) => `<article class="card room ${esc(r.tone)}" style="animation-delay:${i * .12}s">
-    <div class="art" aria-label="${esc(r.name)} room and hotel views"><span class="art-panel art-panel-main" aria-hidden="true"></span><span class="art-panel art-panel-view" aria-hidden="true"></span><span class="art-panel art-panel-detail" aria-hidden="true"></span>${r.left <= 2 && r.left > 0 ? `<span class="badge">Only ${r.left} left</span>` : ''}${r.left === 0 ? '<span class="badge">Fully booked</span>' : ''}</div>
-  <div class="body"><h3>${esc(r.name)}</h3><p>${esc(r.desc)}</p><div class="chips">${r.features.map(f => `<span>${esc(f)}</span>`).join('')}<span>Up to ${r.capacity} guests</span></div>
+  const listings = rooms.flatMap(type => type.units.map(unit => ({ ...type, unit })));
+  const availableCount = listings.filter(listing => listing.unit.available).length;
+  $('#roomResultsMeta').textContent = `${availableCount} of ${listings.length} rooms available for your dates · Use the arrows or keyboard to browse`;
+  roomTrack.setAttribute('aria-label', `${listings.length} rooms and suites; ${availableCount} available`);
+  roomTrack.classList.toggle('is-short-list', listings.length > 0 && listings.length <= 2);
+  roomTrack.innerHTML = listings.length ? listings.map((r, i) => `<article class="card room ${esc(r.tone)}${r.unit.available ? '' : ' is-booked'}" data-reveal style="--room-delay:${i % 3 * .11}s">
+    <div class="art" aria-label="${esc(r.name)}, room ${r.unit.number}${r.unit.available ? ', available' : ', booked for selected dates'}"><span class="art-panel art-panel-main" aria-hidden="true"></span><span class="art-panel art-panel-view" aria-hidden="true"></span><span class="art-panel art-panel-detail" aria-hidden="true"></span>
+      <span class="room-number" aria-hidden="true">${r.unit.number}</span>
+      ${r.unit.available ? (r.left <= 2 ? `<span class="badge">Only ${r.left} left</span>` : '') : '<span class="badge booked-badge">Booked for these dates</span>'}
+    </div>
+  <div class="body"><p class="room-overline">ROOMS &amp; SUITES <span aria-hidden="true">/</span> ${r.unit.number}</p><h3>${esc(r.name)}</h3><p>${esc(r.desc)}</p><div class="chips">${r.features.map(f => `<span>${esc(f)}</span>`).join('')}<span>Up to ${r.capacity} guests</span></div>
     <div class="foot"><div class="price"><b>${money(r.pricing.total)}</b><small>${r.pricing.nights} night${r.pricing.nights > 1 ? 's' : ''}, taxes included</small></div>
-  <button class="btn" data-id="${esc(r.id)}" ${r.left ? '' : 'disabled'}>${r.left ? 'Reserve' : 'Unavailable'}</button></div></div></article>`).join('')
+  <button class="btn room-cta" data-id="${esc(r.id)}" data-room="${r.unit.number}" ${r.unit.available ? '' : 'disabled'}>${r.unit.available ? 'Choose this room' : 'Booked'} <span aria-hidden="true">${r.unit.available ? '→' : '•'}</span></button></div></div></article>`).join('')
     : '<p class="empty card room-empty">No rooms fit that many guests. Try fewer guests or a different date range.</p>';
+  if (revealObserver) roomTrack.querySelectorAll('[data-reveal]').forEach(item => revealObserver.observe(item));
   requestAnimationFrame(updateRoomCarousel);
 }
-$('#rooms').onclick = e => { const id = e.target.dataset.id; if (id) openBooking(rooms.find(r => r.id === id)); };
+$('#rooms').onclick = e => {
+  const button = e.target.closest('button[data-id]');
+  if (!button) return;
+  const type = rooms.find(room => room.id === button.dataset.id);
+  if (type) openBooking(type, Number(button.dataset.room));
+};
 
 const modal = $('#modal'), body = $('#sheetBody');
 let returnFocus = null;
@@ -112,8 +133,8 @@ mainNav.onclick = e => {
 };
 const summary = (p, extra = '') => `<div class="sum">${extra}<div><span>${p.nights} night${p.nights > 1 ? 's' : ''}</span><span>${money(p.subtotal)}</span></div><div><span>Taxes (12%)</span><span>${money(p.tax)}</span></div><div class="tot"><span>Total</span><span>${money(p.total)}</span></div></div>`;
 
-function openBooking(r) {
-  open(`<h3>${r.name}</h3><p class="muted">${fmtDate(query.checkIn)} to ${fmtDate(query.checkOut)}</p>${summary(r.pricing)}
+function openBooking(r, roomNumber) {
+  open(`<h3>${r.name} · Room ${roomNumber}</h3><p class="muted">${fmtDate(query.checkIn)} to ${fmtDate(query.checkOut)}</p>${summary(r.pricing)}
   <form class="form" id="bform"><div class="two"><label>Full name<input name="name" maxlength="80" required autocomplete="name"></label><label>Phone<input name="phone" type="tel" maxlength="30" autocomplete="tel"></label></div>
   <label>Email<input name="email" type="email" maxlength="254" required autocomplete="email"></label>
   <label>Guests<select name="guests">${Array.from({ length: r.capacity }, (_, i) => `<option ${i + 1 === query.guests ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></label>
@@ -122,7 +143,7 @@ function openBooking(r) {
   <p class="msg" id="bmsg" role="alert"></p><button class="btn" id="bbtn">Confirm booking</button></form>`);
   $('#bform').onsubmit = async e => {
     e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); $('#bbtn').disabled = true; $('#bbtn').textContent = 'Confirming...';
-    try { const { booking } = await api('/api/bookings', { ...f, guests: +f.guests, typeId: r.id, checkIn: query.checkIn, checkOut: query.checkOut }); success(booking); }
+    try { const { booking } = await api('/api/bookings', { ...f, guests: +f.guests, typeId: r.id, roomNumber, checkIn: query.checkIn, checkOut: query.checkOut }); success(booking); }
     catch (err) { $('#bmsg').textContent = err.message; $('#bbtn').disabled = false; $('#bbtn').textContent = 'Confirm booking'; }
   };
 }

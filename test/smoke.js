@@ -111,18 +111,34 @@ async function main() {
     assert.strictEqual((await request(port, 'POST', '/api/bookings', { name: 'Test' }, undefined, 'text/plain')).status, 415);
 
     const checkIn = dateOffset(2), checkOut = dateOffset(3);
+    const availabilityRoute = `/api/availability?${new URLSearchParams({ checkIn, checkOut, guests: 2 })}`;
+    const initialAvailability = await request(port, 'GET', availabilityRoute);
+    assert.strictEqual(initialAvailability.status, 200);
+    const initialUnits = initialAvailability.body.rooms.flatMap(room => room.units);
+    assert.strictEqual(initialUnits.length, 11);
+    assert.strictEqual(new Set(initialUnits.map(room => room.number)).size, 11);
+    assert.ok(initialUnits.every(room => room.available));
+
     const invalidPayment = await request(port, 'POST', '/api/bookings', {
       typeId: 'garden', checkIn, checkOut, name: 'Smoke Guest', email: 'guest@example.com', guests: 1, payment: 'card_demo'
     });
     assert.strictEqual(invalidPayment.status, 400);
 
     const bookingResponse = await request(port, 'POST', '/api/bookings', {
-      typeId: 'garden', checkIn, checkOut, name: 'Smoke Guest', email: 'guest@example.com', guests: 1
+      typeId: 'garden', roomNumber: 103, checkIn, checkOut, name: 'Smoke Guest', email: 'guest@example.com', guests: 1
     });
     assert.strictEqual(bookingResponse.status, 201);
     const booking = bookingResponse.body.booking;
     assert.strictEqual(booking.reference.length, 15);
     assert.strictEqual(booking.payment, 'PAY AT HOTEL');
+    assert.strictEqual(booking.room, 103);
+    assert.strictEqual((await request(port, 'POST', '/api/bookings', {
+      typeId: 'garden', roomNumber: 103, checkIn, checkOut, name: 'Another Guest', email: 'another@example.com', guests: 1
+    })).status, 409);
+    const updatedAvailability = await request(port, 'GET', availabilityRoute);
+    const bookedUnit = updatedAvailability.body.rooms.flatMap(room => room.units).find(room => room.number === 103);
+    assert.deepStrictEqual(bookedUnit, { number: 103, available: false });
+    assert.strictEqual(updatedAvailability.body.rooms.find(room => room.id === 'garden').left, 4);
     assert.strictEqual((await request(port, 'GET', `/api/bookings/${booking.reference}?email=wrong%40example.com`)).status, 404);
     assert.strictEqual((await request(port, 'POST', `/api/admin/bookings/${booking.reference}/status`, { status: 'CHECKED_OUT' }, cookie)).status, 409);
 
