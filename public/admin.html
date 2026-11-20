@@ -4,42 +4,62 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="theme-color" content="#19372f">
+    <meta name="theme-color" content="#245ddd">
     <meta name="description" content="Aurelia Grand front desk booking and kitchen order dashboard.">
-    <title>Front desk | Aurelia Grand</title>
+    <title>Staff dashboard | Aurelia Grand</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&amp;family=Manrope:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <style>
-    </style>
+  <link rel="stylesheet" href="polish.css">
+  <script src="preferences.js"></script>
+  <link rel="stylesheet" href="preferences.css">
 </head>
 
 <body class="admin-page">
     <a class="skip-link" href="#main">Skip to dashboard</a>
     <header class="nav admin-nav">
         <a class="brand brand-lockup" href="/" aria-label="Aurelia Grand home"><span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span></a>
-        <div class="admin-nav-actions"><span class="admin-live"><i></i> Front desk</span><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div>
+        <div class="admin-nav-actions"><span id="staffIdentity"></span><button class="btn ghost" id="changePassword" type="button" hidden>Change password</button><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div>
+        <div class="display-preferences" hidden>
+          <button class="preference-control" type="button" data-theme-choice aria-label="Dark mode" aria-pressed="false">
+            <svg class="preference-icon preference-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+            <svg class="preference-icon preference-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 14.1A9 9 0 0 1 9.9 3.2a9 9 0 1 0 10.9 10.9Z"/></svg>
+          </button>
+          <button class="preference-control" type="button" data-currency-choice aria-label="Display prices in US dollars" aria-pressed="false" title="USD estimates use Rs 333 per US dollar">
+            <svg class="preference-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><text class="currency-rupee" x="12" y="15.5" text-anchor="middle">Rs</text><path class="currency-dollar" d="M12 6.5v11m3-8H11a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9"/></svg>
+          </button>
+        </div>
     </header>
     <main id="main" class="admin-shell">
         <section class="admin-welcome">
-            <div><p class="eyebrow">AURELIA GRAND · STAFF</p><h1>Your front desk</h1><p class="muted">A clear view of today's arrivals, stays and kitchen orders.</p></div>
-            <div class="welcome-mark" aria-hidden="true">✦</div>
+            <div><p class="eyebrow">AURELIA GRAND · STAFF</p><h1>Staff dashboard</h1></div>
+            <div class="welcome-mark" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></div>
         </section>
-        <form id="k" class="card admin-login">
-            <div class="login-icon" aria-hidden="true">✦</div>
-            <div class="login-copy"><h2>Welcome back</h2><p class="muted">Sign in with your staff key to manage hotel operations.</p></div>
-            <label class="sr-only" for="key">Staff key</label>
-            <input id="key" type="password" placeholder="Enter your staff key" autocomplete="current-password" required>
-            <button class="btn">Sign in <span aria-hidden="true">→</span></button>
+        <section id="gate" hidden>
+            <form id="gf" class="card admin-login">
+                <div class="login-copy"><h2>Staff sign-in</h2></div>
+                <label>Username <input name="username" autocomplete="username" required></label>
+                <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+                <button class="btn">Sign in</button>
+            </form>
+        </section>
+        <form id="passwordForm" class="card admin-login" hidden>
+            <div class="login-copy"><h2>Change password</h2></div>
+            <label>Current password <input name="currentPassword" type="password" autocomplete="current-password" required></label>
+            <label>New password <input name="password" type="password" minlength="10" autocomplete="new-password" required></label>
+            <button class="btn">Save password</button>
         </form>
         <p class="msg admin-message" id="m" role="status" aria-live="polite"></p>
         <div id="dashboard" hidden>
-            <section class="admin-metrics" aria-label="Today's front desk summary">
-                <article class="metric-card"><span class="metric-icon" aria-hidden="true">⌂</span><div><span>Bookings</span><strong id="metricBookings">0</strong><small>all reservations</small></div></article>
-                <article class="metric-card"><span class="metric-icon" aria-hidden="true">↗</span><div><span>Arriving today</span><strong id="metricArrivals">0</strong><small>confirmed stays</small></div></article>
-                <article class="metric-card"><span class="metric-icon" aria-hidden="true">⌑</span><div><span>In house</span><strong id="metricInHouse">0</strong><small>current guests</small></div></article>
-                <article class="metric-card"><span class="metric-icon" aria-hidden="true">♨</span><div><span>Open orders</span><strong id="metricOrders">0</strong><small>awaiting delivery</small></div></article>
+            <section id="metrics" class="admin-metrics" aria-label="Today's front desk summary">
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h2m4 0h2"/></svg></span><div><span>Bookings</span><strong id="metricBookings">0</strong><small>all reservations</small></div></article>
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h6v18h-6M3 12h12m-5-5 5 5-5 5"/></svg></span><div><span>Arriving today</span><strong id="metricArrivals">0</strong><small>confirmed stays</small></div></article>
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-7h18v7M3 15h18M5 11V6h14v5M8 8h2m4 0h2M3 18v2m18-2v2"/></svg></span><div><span>In house</span><strong id="metricInHouse">0</strong><small>current guests</small></div></article>
+                <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v6a3 3 0 0 0 6 0V3M7 3v18M20 21V3c-5 2-5 10 0 10"/></svg></span><div><span>Open orders</span><strong id="metricOrders">0</strong><small>awaiting delivery</small></div></article>
             </section>
             <label class="dashboard-search"><span aria-hidden="true">⌕</span><span class="sr-only">Filter bookings and orders</span><input id="dashboardFilter" type="search" placeholder="Search by guest, reference, room or dish"></label>
-            <section class="admin-panel" aria-labelledby="bookingsTitle">
+            <section id="bookingsPanel" class="admin-panel" aria-labelledby="bookingsTitle">
                 <div class="panel-heading"><div><p class="eyebrow">GUEST JOURNEY</p><h2 id="bookingsTitle">Bookings</h2></div><span class="panel-count" id="bookingCount">0</span></div>
                 <div class="card wrap" id="t">
             <table>
@@ -65,105 +85,38 @@
             </table>
         </div>
             </section>
+            <section id="sec-s" class="admin-panel" aria-labelledby="staffTitle" hidden>
+                <div class="panel-heading"><h2 id="staffTitle">Staff accounts</h2></div>
+                <form id="staffForm" class="card admin-login">
+                    <label>Name <input name="name" minlength="2" maxlength="80" required></label>
+                    <label>Username <input name="username" pattern="[a-z0-9._\-]{3,30}" title="3 to 30 lowercase letters, numbers, dots, dashes or underscores" autocomplete="off" required></label>
+                    <label>Role
+                        <select name="role">
+                            <option value="frontdesk">Front desk</option>
+                            <option value="kitchen">Kitchen</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </label>
+                    <label>Initial password <input name="password" type="password" minlength="10" autocomplete="new-password" required></label>
+                    <button class="btn">Add staff account</button>
+                </form>
+                <div class="card wrap">
+                    <table>
+                        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="staffTable"></tbody>
+                    </table>
+                </div>
+                <form id="resetForm" class="card admin-login" hidden>
+                    <div class="login-copy"><h3 id="resetTitle">Reset password</h3></div>
+                    <label>New password <input name="password" type="password" minlength="10" autocomplete="new-password" required></label>
+                    <button class="btn">Reset password</button>
+                    <button class="btn ghost" type="button" id="cancelReset">Cancel</button>
+                </form>
+            </section>
         </div>
     </main>
-    <footer class="admin-footer"><a href="/">← Return to guest website</a><span>Made for warm welcomes.</span></footer>
-    <script>
-        const $ = s => document.querySelector(s), H = () => ({ 'Content-Type': 'application/json' }), e = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])), money = n => 'Rs ' + Number(n || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const bookingNext = { CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'], CHECKED_IN: ['CHECKED_OUT'], CHECKED_OUT: [], CANCELLED: [], NO_SHOW: [] };
-        const orderNext = { RECEIVED: ['PREPARING', 'CANCELLED'], PREPARING: ['READY'], READY: ['DELIVERED'], DELIVERED: [], CANCELLED: [] };
-        let lastOrders = '', refreshTimer = null, bookingsData = [], ordersData = [];
-        const localToday = () => {
-            const date = new Date();
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        };
-        const searchTerm = () => $('#dashboardFilter').value.trim().toLowerCase();
-        function renderBookings() {
-            const term = searchTerm();
-            const bookings = bookingsData.filter(b => [b.reference, b.guest, b.email, b.roomName, b.room, b.status].some(value => String(value).toLowerCase().includes(term)));
-            $('#bookingCount').textContent = bookings.length;
-            $('#bookingRows').innerHTML = bookings.length ? bookings.map(b => {
-                const options = [b.status, ...(bookingNext[b.status] || [])];
-                return `<tr><td><span class="table-ref">${e(b.reference)}</span></td><td><strong>${e(b.guest)}</strong><small class="table-sub">${e(b.email)}</small></td><td>${e(b.roomName)}<small class="table-sub">Room ${e(b.room)}</small></td><td>${e(b.checkIn)}<small class="table-sub">to ${e(b.checkOut)}</small></td><td>${money(b.pricing.total)}</td><td><select data-r="${e(b.reference)}" data-current="${e(b.status)}" aria-label="Update booking ${e(b.reference)}">${options.map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></td></tr>`;
-            }).join('') : `<tr><td colspan="6" class="empty">${term ? 'No bookings match your search.' : 'No bookings yet.'}</td></tr>`;
-        }
-        function renderOrders() {
-            const term = searchTerm();
-            const orders = ordersData.filter(o => [o.reference, o.guest, o.room, o.status, o.note, ...o.lines.map(line => line.name)].some(value => String(value || '').toLowerCase().includes(term)));
-            $('#orderCount').textContent = orders.length;
-            $('#ob').innerHTML = orders.length ? orders.map(o => {
-                const options = [o.status, ...(orderNext[o.status] || [])];
-                return `<tr><td><span class="table-ref">${e(o.reference)}</span></td><td><strong>${e(o.guest)}</strong><small class="table-sub">${o.room ? 'Room ' + e(o.room) : 'Restaurant pickup'}</small></td><td>${o.lines.map(l => `${e(l.qty)} × ${e(l.name)}`).join('<br>')}${o.note ? `<small class="table-sub">Note: ${e(o.note)}</small>` : ''}</td><td>${money(o.pricing.total)}</td><td><select data-o="${e(o.reference)}" data-current="${e(o.status)}" aria-label="Update order ${e(o.reference)}">${options.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td></tr>`;
-            }).join('') : `<tr><td colspan="5" class="empty">${term ? 'No kitchen orders match your search.' : 'No orders yet.'}</td></tr>`;
-        }
-        function renderMetrics() {
-            const today = localToday();
-            $('#metricBookings').textContent = bookingsData.length;
-            $('#metricArrivals').textContent = bookingsData.filter(b => b.checkIn === today && b.status === 'CONFIRMED').length;
-            $('#metricInHouse').textContent = bookingsData.filter(b => b.status === 'CHECKED_IN').length;
-            $('#metricOrders').textContent = ordersData.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status)).length;
-        }
-        async function api(url, body) {
-            const r = await fetch(url, { method: body ? 'POST' : 'GET', headers: H(), body: body ? JSON.stringify(body) : undefined }), j = await r.json();
-            if (!r.ok) throw new Error(j.error || 'Request failed.');
-            return j;
-        }
-        async function loadBookings() {
-            const { bookings } = await api('/api/admin/bookings');
-            bookingsData = bookings;
-            renderBookings();
-        }
-        async function loadOrders() {
-            const { orders } = await api('/api/admin/orders'), signature = JSON.stringify(orders);
-            if (signature === lastOrders) return;
-            lastOrders = signature;
-            ordersData = orders;
-            renderOrders();
-        }
-        async function refresh() {
-            try { await Promise.all([loadBookings(), loadOrders()]); renderMetrics(); $('#dashboard').hidden = false; $('#m').textContent = ''; }
-            catch (error) { $('#m').textContent = error.message; }
-        }
-        async function signIn(key) {
-            try {
-                await api('/api/admin/session', { key });
-                $('#key').value = ''; $('#m').textContent = '';
-                $('#k').hidden = true; $('#logout').hidden = false;
-                await refresh();
-                clearInterval(refreshTimer); refreshTimer = setInterval(refresh, 15000);
-            } catch (error) { $('#m').textContent = error.message; }
-        }
-        $('#k').onsubmit = event => { event.preventDefault(); signIn($('#key').value); };
-        $('#dashboardFilter').oninput = () => { renderBookings(); renderOrders(); };
-        $('#logout').onclick = async () => {
-            try { await api('/api/admin/session/logout', {}); }
-            catch (error) { $('#m').textContent = error.message; return; }
-            clearInterval(refreshTimer); $('#k').hidden = false; $('#logout').hidden = true; $('#dashboard').hidden = true; $('#m').textContent = 'You have signed out.';
-        };
-        $('#bookingRows').onchange = async event => {
-            const select = event.target, previous = select.dataset.current;
-            try {
-                await api(`/api/admin/bookings/${encodeURIComponent(select.dataset.r)}/status`, { status: select.value });
-                select.dataset.current = select.value; await loadBookings(); renderMetrics();
-            } catch (error) { $('#m').textContent = error.message; select.value = previous || 'CONFIRMED'; }
-        };
-        $('#ob').onchange = async event => {
-            const select = event.target;
-            const previous = select.dataset.current;
-            try { await api(`/api/admin/orders/${encodeURIComponent(select.dataset.o)}/status`, { status: select.value }); select.dataset.current = select.value; lastOrders = ''; await loadOrders(); renderMetrics(); }
-            catch (error) { $('#m').textContent = error.message; select.value = previous; }
-        };
-        (async () => {
-            try {
-                if ((await api('/api/admin/session')).authenticated) {
-                    $('#k').hidden = true; $('#logout').hidden = false;
-                    await refresh(); refreshTimer = setInterval(refresh, 15000);
-                }
-            } catch (error) {
-                $('#m').textContent = error.message;
-            }
-        })();
-    </script>
+    <footer class="admin-footer"><a href="/">← Return to guest website</a></footer>
+    <script src="admin.js" defer></script>
 </body>
 
 </html>

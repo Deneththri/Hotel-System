@@ -3,16 +3,19 @@ const http = require('http'), fs = require('fs'), path = require('path'), crypto
 const PORT = Number(process.env.PORT || 3000), HOST = process.env.HOST || '127.0.0.1', TAX = 0.12;
 const PRODUCTION = process.env.NODE_ENV === 'production';
 if (!Number.isInteger(PORT) || PORT < 0 || PORT > 65535) throw new Error('PORT must be a valid TCP port.');
-if (process.env.ADMIN_KEY && process.env.ADMIN_KEY.length < (PRODUCTION ? 32 : 16)) {
-  throw new Error(`ADMIN_KEY must be at least ${PRODUCTION ? 32 : 16} characters.`);
-}
-if (PRODUCTION && !process.env.ADMIN_KEY) throw new Error('Production requires a unique ADMIN_KEY of at least 32 characters.');
-const ADMIN_KEY = process.env.ADMIN_KEY || crypto.randomBytes(32).toString('hex');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const OUT_DIR = process.env.OUTBOX_DIR || path.join(__dirname, 'outbox');
 const DB = path.join(DATA_DIR, 'db.json'), PUB = path.join(__dirname, 'public');
-const SESSION_COOKIE = 'olu_staff_session', SESSION_TTL = 8 * 60 * 60 * 1000;
-const sessions = new Map(), requestLimits = new Map();
+const SESSION_COOKIE = 'olu_staff_session', SESSION_MS = 2 * 3600e3;
+const sessions = new Map(), requestLimits = new Map(), loginFailures = new Map();
+const STAFF = path.join(DATA_DIR, 'staff.json'), AUDIT = path.join(DATA_DIR, 'audit.log');
+const PERMS = {
+  manager: ['bookings', 'orders', 'staff'],
+  frontdesk: ['bookings', 'orders'],
+  kitchen: ['orders']
+};
+const usernamePattern = /^[a-z0-9._-]{3,30}$/;
+const validPassword = value => typeof value === 'string' && Array.from(value).length >= 10;
 fs.mkdirSync(DATA_DIR, { recursive: true }); fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const MENU = [
@@ -27,6 +30,16 @@ const MENU = [
   { id: 'lime', cat: 'Drinks', icon: '🍋', name: 'Fresh Lime Soda', desc: 'Sweet, salty or mixed.', price: 5 },
   { id: 'tea', cat: 'Drinks', icon: '🍵', name: 'Ceylon Tea Pot', desc: 'Single-estate leaf tea for two.', price: 6 },
   { id: 'mocktail', cat: 'Drinks', icon: '🍹', name: 'Sparkling Mocktail', desc: 'Passion fruit, mint and ginger.', price: 9 }];
+// Meal filters can overlap the existing course categories.
+const BREAKFAST = [
+  { id: 'hoppers', cat: 'Breakfast', name: 'Sri Lankan Hoppers', desc: 'Crisp hoppers, an egg hopper, coconut sambol and dhal.', price: 12 },
+  { id: 'breakfast', cat: 'Breakfast', name: 'The Grand Breakfast', desc: 'Eggs your way, sourdough toast, mushrooms and grilled tomato.', price: 15 },
+  { id: 'pancakes', cat: 'Breakfast', name: 'Banana & Honey Pancakes', desc: 'Fluffy pancakes, fresh banana and a drizzle of golden honey.', price: 10 }
+];
+MENU.unshift(...BREAKFAST);
+const mealTags = item => item.cat === 'Breakfast' ? ['Breakfast']
+  : item.cat === 'Drinks' ? ['Breakfast', 'Lunch', 'Dinner'] : ['Lunch', 'Dinner'];
+MENU.forEach(item => { item.meals = mealTags(item); });
 const seed = {
   bookings: [], orders: [], menu: MENU, types: [
     { id: 'garden', name: 'Garden Room', price: 120, capacity: 2, count: 5, base: 100, tone: 't1', desc: 'A calm retreat overlooking the courtyard garden.', features: ['King bed', 'Garden view', 'Rain shower'] },
@@ -45,6 +58,9 @@ const load = () => {
   }
   d.menu = d.menu || seed.menu; d.orders = d.orders || [];
   if (!Array.isArray(d.menu) || !Array.isArray(d.orders)) throw new Error('The hotel data file has an invalid structure.');
+  // Enrich existing catalogs while preserving stored prices and custom dishes.
+  const missingBreakfast = BREAKFAST.filter(item => !d.menu.some(stored => stored.id === item.id));
+  d.menu = [...missingBreakfast, ...d.menu].map(item => ({ ...item, meals: item.meals || mealTags(item) }));
   return d;
 };
 const save = d => {
@@ -86,23 +102,135 @@ function allowRequest(req, action, max, windowMs) {
   }
   return entry.count <= max;
 }
-function readSession(req) {
-  const cookie = (req.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith(`${SESSION_COOKIE}=`));
-  const token = cookie && cookie.slice(SESSION_COOKIE.length + 1);
-  const session = token && sessions.get(token);
-  if (!session || session.expiresAt <= Date.now()) {
-    if (token) sessions.delete(token);
+function hashPw(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') };
+}
+function checkPw(password, { salt, hash }) {
+  const actual = crypto.scryptSync(typeof password === 'string' ? password : '', salt, 64);
+  return crypto.timingSafeEqual(actual, Buffer.from(hash, 'hex'));
+}
+function saveStaff(accounts) {
+  fs.writeFileSync(STAFF + '.tmp', JSON.stringify(accounts, null, 2), { mode: 0o600 });
+  fs.renameSync(STAFF + '.tmp', STAFF);
+}
+function loadStaff() {
+  let raw = '';
+  try { raw = fs.readFileSync(STAFF, 'utf8'); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  const accounts = raw.trim() ? JSON.parse(raw) : [];
+  if (!Array.isArray(accounts)) throw new Error('Invalid staff data file.');
+  if (accounts.length) return accounts;
+  const configured = process.env.ADMIN_PASSWORD;
+  if (configured !== undefined && !validPassword(configured)) throw new Error('ADMIN_PASSWORD must be at least 10 characters.');
+  const password = configured ?? crypto.randomBytes(24).toString('base64url');
+  accounts.push({ username: 'admin', name: 'Administrator', role: 'manager', active: true, password: hashPw(password) });
+  saveStaff(accounts);
+  if (configured === undefined) console.log('Initial admin password (shown once): ' + password);
+  return accounts;
+}
+const staff = loadStaff();
+const unknownPassword = hashPw(crypto.randomBytes(32).toString('hex'));
+const staffView = ({ username, name, role, active }) => ({ username, name, role, active });
+const staffByName = username => staff.find(user => user.username === username);
+
+function auth(req) {
+  const cookie = (req.headers.cookie || '').split(';').map(value => value.trim()).find(value => value.startsWith(SESSION_COOKIE + '='));
+  const token = cookie?.slice(SESSION_COOKIE.length + 1);
+  const session = sessions.get(token);
+  const user = session && staffByName(session.username);
+  if (!user?.active || session.expiresAt <= Date.now()) {
+    sessions.delete(token);
     return null;
   }
-  return token;
+  return { user, token, expiresAt: session.expiresAt };
 }
 function sessionCookie(token, maxAge) {
-  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${maxAge}${PRODUCTION ? '; Secure' : ''}`;
+  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=${maxAge}${process.env.HTTPS === '1' ? '; Secure' : ''}`;
 }
-const isValidStaffKey = candidate => typeof candidate === 'string' && crypto.timingSafeEqual(
-  crypto.createHash('sha256').update(candidate).digest(),
-  crypto.createHash('sha256').update(ADMIN_KEY).digest()
-);
+function endSessions(username, keep) {
+  for (const [token, session] of sessions) {
+    if (session.username === username && token !== keep) sessions.delete(token);
+  }
+}
+function audit(action, user, details = {}) {
+  const actor = user ? { username: user.username, name: user.name } : null;
+  fs.appendFileSync(AUDIT, JSON.stringify({ at: new Date().toISOString(), action, actor, ...details }) + '\n', { mode: 0o600 });
+}
+function login(req, body) {
+  const address = req.socket.remoteAddress || 'unknown', now = Date.now();
+  for (const [key, failure] of loginFailures) if (failure.expiresAt <= now) loginFailures.delete(key);
+  const failure = loginFailures.get(address) || { count: 0, expiresAt: now + 15 * 60e3 };
+  const limited = !allowRequest(req, 'public-submit', 15, 60e3);
+  const username = typeof body.username === 'string' ? body.username.slice(0, 100) : '';
+  const user = staffByName(body.username);
+  if (failure.count >= 5 || limited) {
+    audit('login_blocked', user, { username, address });
+    return [429, { error: failure.count >= 5 ? 'Too many failed sign-ins. Please wait 15 minutes.' : 'Too many requests. Please try again in a minute.' }];
+  }
+  const matches = checkPw(body.password, user?.password || unknownPassword);
+  if (!matches || !user?.active) {
+    failure.count++;
+    if (failure.count === 5) failure.expiresAt = now + 15 * 60e3;
+    loginFailures.set(address, failure);
+    audit('login_failed', user, { username, address });
+    return [401, { error: 'Incorrect username or password.' }];
+  }
+  loginFailures.delete(address);
+  for (const [token, session] of sessions) if (session.expiresAt <= now) sessions.delete(token);
+  const token = crypto.randomBytes(32).toString('hex'), expiresAt = Date.now() + SESSION_MS;
+  audit('login', user, { address });
+  sessions.set(token, { username: user.username, expiresAt });
+  const previous = auth(req);
+  if (previous) sessions.delete(previous.token);
+  return [200, { user: staffView(user), expiresAt }, { 'Set-Cookie': sessionCookie(token, SESSION_MS / 1000) }];
+}
+
+function updateStaff(user, changes) {
+  const updated = { ...user, ...changes };
+  const index = staff.indexOf(user);
+  const accounts = staff.slice();
+  accounts[index] = updated;
+  saveStaff(accounts);
+  staff[index] = updated;
+}
+
+function staffAccounts(method, route, body, actor) {
+  if (route === '/api/admin/staff') {
+    if (method === 'GET') return [200, { staff: staff.map(staffView) }];
+    if (method === 'POST') {
+      const { username, name, role, password } = body;
+      if (typeof username !== 'string' || !usernamePattern.test(username)) return [400, { error: 'Use 3 to 30 lowercase letters, numbers, dots, dashes or underscores.' }];
+      if (!validName(name) || typeof role !== 'string' || !Object.prototype.hasOwnProperty.call(PERMS, role)) return [400, { error: 'Enter a name and select a staff role.' }];
+      if (!validPassword(password)) return [400, { error: 'Passwords must be at least 10 characters.' }];
+      if (staffByName(username)) return [409, { error: 'This username already exists.' }];
+      const user = { username, name: name.trim(), role, active: true, password: hashPw(password) };
+      saveStaff([...staff, user]);
+      staff.push(user);
+      audit('staff_created', actor, { target: username });
+      return [201, { user: staffView(user) }];
+    }
+  }
+  const match = route.match(/^\/api\/admin\/staff\/([a-z0-9._-]+)\/(password|active)$/);
+  if (method === 'POST' && match) {
+    const user = staffByName(match[1]);
+    if (!user) return [404, { error: 'Staff account not found.' }];
+    if (match[2] === 'password') {
+      if (!validPassword(body.password)) return [400, { error: 'Passwords must be at least 10 characters.' }];
+      updateStaff(user, { password: hashPw(body.password) });
+      endSessions(user.username);
+      audit('password_reset', actor, { target: user.username });
+    } else {
+      if (typeof body.active !== 'boolean') return [400, { error: 'Choose whether the account is active.' }];
+      if (!body.active && user.username === actor.username) return [403, { error: 'You cannot deactivate your own account.' }];
+      updateStaff(user, { active: body.active });
+      endSessions(user.username);
+      audit(body.active ? 'staff_activated' : 'staff_deactivated', actor, { target: user.username });
+    }
+    return [200, { user: staffView(staffByName(user.username)) }];
+  }
+  return [404, { error: 'Not found.' }];
+}
 
 function sendEmail(b) { // Demo "email": saved as HTML in /outbox. Swap for SMTP/SendGrid/SES in production.
   const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:auto;padding:32px;background:#eaf1ef;color:#1e3b3f"><h1>Booking confirmed</h1><p>Dear ${esc(b.guest)}, we look forward to welcoming you.</p><p><b>Reference:</b> ${b.reference}<br><b>Room:</b> ${esc(b.roomName)} (#${b.room})<br><b>Stay:</b> ${b.checkIn} to ${b.checkOut} (${b.pricing.nights} nights)<br><b>Total:</b> ${formatRs(b.pricing.total)}</p><p>Olu</p></div>`;
@@ -125,25 +253,30 @@ const hasPendingRoomOrders = (db, bookingRef) => db.orders.some(o => orderBookin
 
 function api(req, url, body) {
   const p = url.pathname, q = url.searchParams, m = req.method;
-  if (p === '/api/admin/session') {
-    if (m === 'POST') {
-      if (!allowRequest(req, 'staff-login', 10, 15 * 60 * 1000)) return [429, { error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' }];
-      if (!isValidStaffKey(body.key)) return [401, { error: 'Incorrect staff key.' }];
-      const now = Date.now();
-      for (const [session, details] of sessions) if (details.expiresAt <= now) sessions.delete(session);
-      const token = crypto.randomBytes(32).toString('hex');
-      sessions.set(token, { expiresAt: now + SESSION_TTL });
-      return [200, { authenticated: true }, { 'Set-Cookie': sessionCookie(token, SESSION_TTL / 1000) }];
+  let actor;
+  if (p.startsWith('/api/staff/') || p.startsWith('/api/admin/')) {
+    if (m === 'POST' && p === '/api/staff/login') return login(req, body);
+    const session = auth(req);
+    if (!session) return [401, { error: 'Staff sign-in required.' }];
+    actor = session.user;
+    if (p === '/api/staff/me' && m === 'GET') return [200, { user: staffView(actor), expiresAt: session.expiresAt }];
+    if (p === '/api/staff/logout' && m === 'POST') {
+      sessions.delete(session.token);
+      audit('logout', actor);
+      return [200, {}, { 'Set-Cookie': sessionCookie('', 0) }];
     }
-    if (m === 'GET') return [200, { authenticated: Boolean(readSession(req)) }];
-  }
-  if (p === '/api/admin/session/logout' && m === 'POST') {
-    const token = readSession(req);
-    if (token) sessions.delete(token);
-    return [200, { authenticated: false }, { 'Set-Cookie': sessionCookie('', 0) }];
-  }
-  if (p.startsWith('/api/admin/')) {
-    if (!readSession(req)) return [401, { error: 'Staff sign-in required.' }];
+    if (p === '/api/staff/password' && m === 'POST') {
+      if (!validPassword(body.password)) return [400, { error: 'Passwords must be at least 10 characters.' }];
+      if (typeof body.currentPassword !== 'string' || !checkPw(body.currentPassword, actor.password)) return [400, { error: 'Incorrect current password.' }];
+      updateStaff(actor, { password: hashPw(body.password) });
+      endSessions(actor.username, session.token);
+      audit('password_changed', actor);
+      return [200, {}];
+    }
+    const section = p.split('/')[3];
+    if (p.startsWith('/api/staff/') || !['bookings', 'orders', 'staff'].includes(section)) return [404, { error: 'Not found.' }];
+    if (!PERMS[actor.role]?.includes(section)) return [403, { error: 'Your role does not have access.' }];
+    if (section === 'staff') return staffAccounts(m, p, body, actor);
   }
   const db = load();
   if (m === 'GET' && p === '/api/availability') {
@@ -159,7 +292,7 @@ function api(req, url, body) {
   }
   if (m === 'POST' && p === '/api/bookings') {
     const { typeId, checkIn, checkOut, name, email, phone, guests = 1, requests = '', payment = 'pay_at_hotel', roomNumber } = body;
-    if (!allowRequest(req, 'booking-create', 10, 60 * 1000)) return [429, { error: 'Too many booking attempts. Please wait a moment and try again.' }];
+    if (!allowRequest(req, 'public-submit', 15, 60e3)) return [429, { error: 'Too many booking attempts. Please wait a moment and try again.' }];
     const err = checkDates(checkIn, checkOut); if (err) return [400, { error: err }];
     const t = db.types.find(x => x.id === typeId); if (!t) return [400, { error: 'Please choose a room.' }];
     if (!validName(name)) return [400, { error: 'Please enter your full name (2 to 80 characters).' }];
@@ -202,7 +335,10 @@ function api(req, url, body) {
         const booking = db.bookings.find(x => x.reference === orderBookingRef(o));
         if (!booking || !['CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT'].includes(booking.status)) return [409, { error: 'This room order is no longer linked to an active guest booking. Contact the front desk.' }];
       }
-      if (o.status !== body.status) setStatus(db, o, body.status); save(db); return [200, { order: o }];
+      if (o.status !== body.status) setStatus(db, o, body.status);
+      save(db);
+      audit('order_status', actor, { reference: o.reference, status: o.status });
+      return [200, { order: o }];
     }
     if (m === 'GET' && p === '/api/admin/bookings') return [200, { bookings: db.bookings.slice().reverse() }];
     r = p.match(/^\/api\/admin\/bookings\/([\w-]+)\/status$/);
@@ -212,13 +348,16 @@ function api(req, url, body) {
       const transitions = { CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'], CHECKED_IN: ['CHECKED_OUT'], CHECKED_OUT: [], CANCELLED: [], NO_SHOW: [] };
       if (b.status !== body.status && !transitions[b.status]?.includes(body.status)) return [409, { error: `A booking cannot move from ${b.status} to ${body.status}.` }];
       if (b.status !== body.status && ['CANCELLED', 'NO_SHOW'].includes(body.status) && hasPendingRoomOrders(db, b.reference)) return [409, { error: 'Resolve pending room orders before cancelling this booking.' }];
-      b.status = body.status; save(db); return [200, { booking: b }];
+      b.status = body.status;
+      save(db);
+      audit('booking_status', actor, { reference: b.reference, status: b.status });
+      return [200, { booking: b }];
     }
   }
   if (m === 'GET' && p === '/api/menu') return [200, { menu: db.menu }];
   if (m === 'POST' && p === '/api/orders') {
     const { name, email, items = [], note = '', bookingRef = '' } = body;
-    if (!allowRequest(req, 'order-create', 20, 60 * 1000)) return [429, { error: 'Too many orders were submitted. Please wait a moment and try again.' }];
+    if (!allowRequest(req, 'public-submit', 15, 60e3)) return [429, { error: 'Too many orders were submitted. Please wait a moment and try again.' }];
     if (!validName(name)) return [400, { error: 'Please enter your full name (2 to 80 characters).' }];
     if (!validEmail(email)) return [400, { error: 'Please enter a valid email address.' }];
     if (!Array.isArray(items) || items.length > 50 || items.some(i => !i || !Number.isInteger(i.qty) || i.qty < 1 || i.qty > 20)) return [400, { error: 'Your order contains invalid items or quantities.' }];
@@ -270,6 +409,9 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify(payload));
   };
   if (url.pathname.startsWith('/api/')) {
+    if (req.method === 'POST' && /^\/api\/(staff|admin)\//.test(url.pathname) && req.headers['x-requested-with'] !== 'olu') {
+      return send(403, { error: 'Staff request header required.' });
+    }
     if (req.method === 'POST' && !/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {
       return send(415, { error: 'Requests must use application/json.' });
     }
@@ -319,6 +461,9 @@ const server = http.createServer((req, res) => {
   }
   res.writeHead(200, {
     ...SECURITY_HEADERS,
+    ...(relative.toLowerCase() === 'admin.html' && {
+      'Content-Security-Policy': SECURITY_HEADERS['Content-Security-Policy'].replace("script-src 'self' 'unsafe-inline'", "script-src 'self'")
+    }),
     'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
     'Cache-Control': path.extname(file).toLowerCase() === '.html' ? 'no-store' : 'no-cache'
   });
@@ -336,5 +481,4 @@ server.listen(PORT, HOST, () => {
   const address = server.address();
   const displayHost = address.address.includes(':') ? `[${address.address}]` : address.address;
   console.log(`Olu running at http://${displayHost}:${address.port} (admin: /admin.html)`);
-  if (!process.env.ADMIN_KEY && !PRODUCTION) console.log(`Development-only staff key: ${ADMIN_KEY}`);
 });

@@ -1,0 +1,203 @@
+@media screen {
+  .display-preferences:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: none;
+  }
+
+  .preference-control {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #245970;
+    cursor: pointer;
+  }
+
+  .preference-icon {
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+
+  .preference-moon,
+  .currency-dollar,
+  [data-currency-choice][aria-pressed="true"] .currency-rupee,
+  [data-theme="dark"] .preference-sun {
+    display: none;
+  }
+
+  [data-theme="dark"] .preference-moon,
+  [data-currency-choice][aria-pressed="true"] .currency-dollar {
+    display: block;
+  }
+
+  .currency-rupee {
+    fill: currentColor;
+    stroke: none;
+    font: 700 10px var(--sans);
+  }
+
+  [data-theme="dark"] .preference-control {
+    color: var(--night-accent);
+  }
+
+  .landing-page:not(.dining-page) .preference-control {
+    color: #e4f7fa;
+  }
+
+  .admin-page .preference-control {
+    color: #e4f7fa;
+  }
+
+  .preference-control:hover .preference-icon,
+  .preference-control[data-currency-choice][aria-pressed="true"] .preference-icon {
+    stroke-width: 2.3;
+  }
+
+  .preference-control:focus-visible {
+    outline: 2px solid #74c4d4;
+    outline-offset: 2px;
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --ink: #e0f0f4;
+    --muted: #b2cbd4;
+    --gold: #8ed6df;
+    --line: #365b68;
+    --card: #16313c;
+    --mist: #112933;
+    --night-field: #0d252e;
+    --night-panel: #16313c;
+    --night-accent: #9ce2e9;
+  }
+
+  [data-theme="dark"] :is(.landing-page, .admin-page) {
+    background: radial-gradient(ellipse at 92% 25%, #184454, transparent 45%), #0b202b;
+    color: var(--ink);
+    --coastal-line: var(--line);
+  }
+
+  [data-theme="dark"] .landing-page :is(.reservation-panel, .room, .lookup, .sheet),
+  [data-theme="dark"] :is(.dining-page .nav, .admin-nav, .admin-login, .metric-card, .wrap, #lookupResult .card),
+  [data-theme="dark"] #dining :is(.dish, .tab, .qty button) {
+    background: var(--night-panel);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+
+  [data-theme="dark"] :is(#dining, .gallery-section, .hotel-details, .sum, .cartbar, .admin-page th) {
+    background: var(--mist);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+
+  [data-theme="dark"] :is(.room .chips span, .ref, .room-arrow, .room .room-cta:not(:disabled), .panel-count) {
+    background: #214553;
+    border-color: var(--line);
+    color: var(--night-accent);
+  }
+
+  [data-theme="dark"] :is(.reservation-panel .booking-search, .lookup, .sheet, .admin-page) :is(input, select, textarea),
+  [data-theme="dark"] option {
+    background: var(--night-field);
+    color: var(--ink);
+    border-color: var(--line);
+    color-scheme: dark;
+  }
+
+  [data-theme="dark"] :is(
+    .dining-page .brand-name, .dining-page .brand-subtitle, .dining-page .main-nav a,
+    .dining-page .menu-toggle, .dining-back,
+    .search-intro strong, .hotel-details .stat-item strong, .room h3, .room .price b,
+    .experience-cards h3, .journey-copy h3, .dining-preview-note p,
+    h2, #dining :is(h1, h2, h4), #dining .dish-footer b, #manage h2,
+    .table-ref, .admin-page th
+  ) {
+    color: var(--ink);
+  }
+
+  [data-theme="dark"] :is(
+    .muted, .section-heading .muted, .gallery-copy .muted, .room-results-meta,
+    .booking-note, .field-caption, .room-overline, .room .price small,
+    .experience-cards span, .hotel-details .stat-item small, .hotel-details .amen span,
+    .dining-preview-note > span:last-child, #dining .dinfo p,
+    .table-sub, .metric-card small, .admin-footer
+  ) {
+    color: var(--muted);
+  }
+
+  [data-theme="dark"] :is(h2 em, #dining h1 em, .eyebrow, .search-intro span, .field-caption .ui-icon, .text-link, .admin-footer a) {
+    color: var(--night-accent);
+  }
+
+  [data-theme="dark"] .landing-page .booking-search label:focus-within .field-caption {
+    color: var(--night-accent);
+  }
+
+  [data-theme="dark"] #dining :is(.tab.on, .tab:hover, .qty button:hover),
+  [data-theme="dark"] .admin-page tbody tr:hover {
+    background: #265361;
+    border-color: #628b96;
+    color: var(--ink);
+  }
+}
+
+@media screen and (min-width: 801px) {
+  .landing-page .nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .landing-page .nav > .main-nav {
+    grid-column: 2;
+  }
+
+  .landing-page .nav > .display-preferences {
+    grid-column: 3;
+    justify-self: end;
+  }
+}
+
+@media screen and (max-width: 800px) {
+  .landing-page .nav > .display-preferences {
+    margin-inline-start: auto;
+  }
+}
+
+@media screen and (max-width: 1100px) and (min-width: 801px) {
+  .landing-page .nav {
+    gap: 12px;
+  }
+
+  .landing-page .main-nav {
+    gap: 12px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .admin-nav .admin-live {
+    display: none;
+  }
+}
+
+@media screen and (max-width: 420px) {
+  .landing-page .nav {
+    gap: 7px;
+  }
+
+  .admin-nav {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#245ddd">
+  <meta name="description"
+    content="Find your own pace at Aurelia Grand. Thoughtful rooms, a kitchen that cooks to order, and a warm welcome.">
+  <title>Dining | Aurelia Grand</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="polish.css">
+  <link rel="stylesheet" href="resort.css">
+</head>
+
+<body class="landing-page dining-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="utility-bar"><a href="index.html#manage">MANAGE YOUR BOOKING</a><span>A PRIVATE ESCAPE. AN EXTRAORDINARY STAY.</span><a href="index.html#contact">GUEST CONCIERGE &#8599;</a></div>
+  <header class="nav">
+    <div class="brand-wrap">
+      <span class="brand-mark" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></span>
+      <a class="brand brand-lockup" href="index.html#top" aria-label="Aurelia Grand home"><span
+          class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span></a>
+    </div>
+    <nav class="main-nav" id="mainNav" aria-label="Main navigation">
+      <a href="index.html#stay">Rooms</a>
+      <a href="index.html#journey">Your stay</a>
+      <a href="dining.html" aria-current="page">Dining</a>
+      <a href="index.html#facilities">Facilities</a>
+      <a href="index.html#gallery">Gallery</a>
+      <a href="index.html#contact">Contact</a>
+    </nav>
+    <a class="booking-pill" href="index.html#search">Reserve your stay <span aria-hidden="true">&#8599;</span></a>
+    <button class="menu-toggle" type="button" aria-label="Open menu" aria-controls="mainNav"
+      aria-expanded="false"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+  </header>
+
+  <main id="main" class="landing-shell">
+    <section id="dining" class="section dining">
+      <div class="section-heading" data-reveal>
+        <p class="eyebrow">FROM OUR KITCHEN</p>
+        <a class="dining-back" href="index.html">&larr; Back to the hotel</a>
+        <h1>Good taste. <em>Great moments.</em></h1>
+        <p class="muted">From slow breakfasts to dinners worth lingering over. Find your favourite, freshly prepared and delivered to your room with your booking reference.
+        </p>
+      </div>
+      <div id="menuStatus" class="muted" role="status" aria-live="polite"></div>
+      <div id="tabs" class="tabs" aria-label="Menu categories"></div>
+      <div id="menu" aria-label="Food menu"></div>
+    </section>
+
+  </main>
+  <footer><div class="footer-signature" aria-hidden="true">AURELIA GRAND<span>A WORLD OF YOUR OWN.</span></div><a class="footer-brand" href="index.html#top">Aurelia Grand</a><span>Thoughtful stays, at your own pace.</span><a
+      href="index.html#contact">Get in touch</a><a href="/admin.html">Staff sign in</a></footer>
+  <div class="cartbar" id="cartbar"><span></span><button class="btn" id="reviewBtn">Review order</button></div>
+  <button class="pill" id="pill" hidden></button>
+  <div id="modal" class="modal" hidden>
+    <div class="sheet card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <button class="x" id="close" aria-label="Close">&times;</button>
+      <div id="sheetBody"></div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+
+</html>

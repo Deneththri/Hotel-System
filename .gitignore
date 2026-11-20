@@ -1,3 +1,6 @@
 data/db.json
 data/db.json.tmp
 outbox/*.html
+data/staff.json
+data/staff.json.tmp
+data/audit.log

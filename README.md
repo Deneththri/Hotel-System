@@ -10,9 +10,9 @@ Requires Node.js 16 or newer.
 npm start
 ```
 
-Open `http://127.0.0.1:3000`. The server binds to localhost by default. When `ADMIN_KEY` is not set, development startup generates a temporary random staff key and prints it in the server terminal. Set a private `ADMIN_KEY` before starting if you want to keep the same development credential across restarts.
+Open `http://127.0.0.1:3000` for the guest site or `http://localhost:3000/admin.html` for staff sign-in. On first startup with an empty or missing staff file, the server creates the `admin` manager account and prints its generated password once. Set `ADMIN_PASSWORD` to a private password of at least 10 characters before first startup to supply it yourself. Later restarts use the saved account.
 
-Staff sign in at `/admin.html`. Sign-in creates an eight-hour, HTTP-only, same-site session cookie; the staff key is not saved in browser storage. Restarting the process invalidates active sessions.
+Managers can create accounts, reset passwords and deactivate or reactivate accounts. Front desk staff can manage bookings and orders and see the summary cards. Kitchen staff can manage orders. Staff can change their own passwords from the dashboard. Sessions expire two hours after sign-in, even during activity. Restarting the server ends all sessions.
 
 ## Hotel operations
 
@@ -28,23 +28,17 @@ The current tax rate and room/menu catalog are defined in `server.js`. Confirm a
 
 Runtime bookings and orders are stored in `data/db.json`. Confirmation and order notification HTML is written to `outbox/`; **email is not sent**. Configure a real email provider and delivery monitoring before telling guests that an email has been sent.
 
-The JSON database is for a single local development process, not concurrent production traffic. It contains personal data and has no built-in database encryption, automated backups, retention policy, or multi-user audit trail. Keep runtime data outside source control, restrict file-system access, encrypt backups, and use a transactional database with availability constraints before deployment.
+The JSON database is for a single local development process, not concurrent production traffic. It contains personal data and has no built-in database encryption, automated backups or a retention policy. Keep runtime data outside source control, restrict file-system access, encrypt backups, and use a transactional database with availability constraints before deployment.
 
 Runtime database and outbox files are now ignored and removed from the current Git index; the local files are preserved. Removing them from the latest revision does not erase older Git history. If this repository was pushed or shared, purge the exposed data from repository history and treat the guest data as disclosed.
 
 ## Security and production deployment
 
-Production startup refuses to run without an `ADMIN_KEY` of at least 32 characters. Generate a unique random value and provide it through a secret manager or protected environment variable; do not commit it or put it in a deployment manifest.
+Serve the app over HTTPS through a TLS reverse proxy and set `HTTPS=1` to mark the session cookie Secure. Keep the Node server bound to localhost behind the proxy unless the deployment requires a different bind address. Configure `NODE_ENV=production` to enable HSTS. `PORT`, `HOST`, `DATA_DIR`, and `OUTBOX_DIR` can be set through environment variables.
 
-For example, generate a key locally with:
+`data/staff.json` stores account records and salted scrypt password hashes. `data/audit.log` records sign-in attempts, sign-outs, and staff changes as JSON lines. Staff POSTs require `x-requested-with: olu`, and the staff page runs external scripts from the same origin. Five failed sign-ins from an address impose a 15-minute lockout. Sign-in, booking creation and order creation share a limit of 15 requests per minute per address. Staff behind one address share these limits.
 
-```powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-Configure `NODE_ENV=production` and `ADMIN_KEY` in the deployment environment. The production session cookie is marked `Secure`, so serve the app over HTTPS through a correctly configured TLS reverse proxy. Keep the Node server bound to localhost behind that proxy; only set `HOST=0.0.0.0` when the container/network boundary is configured intentionally. `PORT`, `HOST`, `DATA_DIR`, and `OUTBOX_DIR` can be set through environment variables.
-
-The app also sets browser security headers, limits request sizes and sign-in attempts, validates input on the server, uses longer unpredictable booking/order references, and enforces booking/order status transitions. Its current Content Security Policy still permits inline scripts and styles to support the existing pages; move those assets to external files (or use nonces/hashes) before removing the inline allowances. These controls do not replace a production identity provider: staff currently share one key, with no individual accounts, roles, MFA, or durable audit log. Add those controls and a security review before exposing staff operations publicly.
+Account recovery uses a manager password reset. For a local installation with no accessible manager, moving the staff file aside with the server stopped allows it to bootstrap a new account on restart. The new staff file starts with a single manager. The app has no password recovery email or two-step verification.
 
 Online card payments are **not implemented**. Guest reservations are payable at the hotel, and the application does not record payments. Do not collect card numbers in this application. Use a compliant payment provider and verified webhooks if online payments are required.
 

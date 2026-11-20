@@ -1,4 +1,4 @@
-const $ = s => document.querySelector(s), money = n => 'Rs ' + Number(n || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const $ = s => document.querySelector(s), money = displayPreferences.price;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const iso = d => new Date(d).toISOString().slice(0, 10), addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const fmtDate = s => new Date(s + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
@@ -21,11 +21,10 @@ if ('IntersectionObserver' in window && !window.matchMedia('(prefers-reduced-mot
 }
 
 const roomTrack = $('#rooms'), roomCarousel = $('.room-carousel');
-const roomPrev = $('.room-arrow-prev'), roomNext = $('.room-arrow-next');
+const roomNext = $('.room-arrow-next');
 function updateRoomCarousel() {
   const canScroll = roomTrack.scrollWidth > roomTrack.clientWidth + 1;
   roomCarousel.classList.toggle('has-overflow', canScroll);
-  roomPrev.disabled = !canScroll || roomTrack.scrollLeft <= 1;
   roomNext.disabled = !canScroll || roomTrack.scrollLeft + roomTrack.clientWidth >= roomTrack.scrollWidth - 1;
 }
 function scrollRooms(direction) {
@@ -37,35 +36,40 @@ function scrollRooms(direction) {
     behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
   });
 }
-roomPrev.onclick = () => scrollRooms(-1);
-roomNext.onclick = () => scrollRooms(1);
-roomTrack.addEventListener('scroll', updateRoomCarousel, { passive: true });
-roomTrack.addEventListener('keydown', e => {
-  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-    e.preventDefault();
-    scrollRooms(e.key === 'ArrowLeft' ? -1 : 1);
-  }
-});
-window.addEventListener('resize', updateRoomCarousel);
+if (roomTrack) {
+  roomNext.onclick = () => scrollRooms(1);
+  roomTrack.addEventListener('scroll', updateRoomCarousel, { passive: true });
+  roomTrack.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      scrollRooms(e.key === 'ArrowLeft' ? -1 : 1);
+    }
+  });
+  window.addEventListener('resize', updateRoomCarousel);
+}
 
-$('#checkIn').min = iso(new Date()); $('#checkIn').value = iso(addDays(new Date(), 1)); $('#checkOut').min = iso(addDays(new Date(), 2)); $('#checkOut').value = iso(addDays(new Date(), 3));
-$('#checkIn').onchange = () => { const c = $('#checkIn').value; $('#checkOut').min = iso(addDays(c, 1)); if ($('#checkOut').value <= c) $('#checkOut').value = iso(addDays(c, 1)); };
+if ($('#search')) {
+  $('#checkIn').min = iso(new Date()); $('#checkIn').value = iso(addDays(new Date(), 1)); $('#checkOut').min = iso(addDays(new Date(), 2)); $('#checkOut').value = iso(addDays(new Date(), 3));
+  $('#checkIn').onchange = () => { const c = $('#checkIn').value; $('#checkOut').min = iso(addDays(c, 1)); if ($('#checkOut').value <= c) $('#checkOut').value = iso(addDays(c, 1)); };
 
-$('#search').onsubmit = async e => {
-  e.preventDefault(); $('#searchMsg').textContent = ''; $('#rooms').setAttribute('aria-busy', 'true');
-  query = { checkIn: $('#checkIn').value, checkOut: $('#checkOut').value, guests: +$('#guests').value };
-  try {
-    rooms = (await api(`/api/availability?${new URLSearchParams(query)}`)).rooms;
-    renderRooms();
-    if (e.isTrusted) $('#stay').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (err) { $('#searchMsg').textContent = err.message; }
-  finally { $('#rooms').removeAttribute('aria-busy'); }
-};
+  $('#search').onsubmit = async e => {
+    e.preventDefault(); $('#searchMsg').textContent = ''; $('#rooms').setAttribute('aria-busy', 'true');
+    const searchButton = $('#search button[type="submit"]'), searchLabel = searchButton.innerHTML;
+    searchButton.disabled = true; searchButton.textContent = 'Checking availability...';
+    query = { checkIn: $('#checkIn').value, checkOut: $('#checkOut').value, guests: +$('#guests').value };
+    try {
+      rooms = (await api(`/api/availability?${new URLSearchParams(query)}`)).rooms;
+      renderRooms();
+      if (e.isTrusted) $('#stay').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) { $('#searchMsg').textContent = err.message; }
+    finally { $('#rooms').removeAttribute('aria-busy'); searchButton.disabled = false; searchButton.innerHTML = searchLabel; }
+  };
+}
 function renderRooms() {
   roomTrack.scrollLeft = 0;
   const listings = rooms.flatMap(type => type.units.map(unit => ({ ...type, unit })));
   const availableCount = listings.filter(listing => listing.unit.available).length;
-  $('#roomResultsMeta').textContent = '';
+  $('#roomResultsMeta').textContent = `${availableCount} of ${listings.length} rooms available / ${fmtDate(query.checkIn)} to ${fmtDate(query.checkOut)}`;
   roomTrack.setAttribute('aria-label', `${listings.length} rooms and suites; ${availableCount} available`);
   roomTrack.classList.toggle('is-short-list', listings.length > 0 && listings.length <= 2);
   roomTrack.innerHTML = listings.length ? listings.map((r, i) => `<article class="card room ${esc(r.tone)}${r.unit.available ? '' : ' is-booked'}" data-reveal style="--room-delay:${i % 3 * .11}s">
@@ -80,7 +84,7 @@ function renderRooms() {
   if (revealObserver) roomTrack.querySelectorAll('[data-reveal]').forEach(item => revealObserver.observe(item));
   requestAnimationFrame(updateRoomCarousel);
 }
-$('#rooms').onclick = e => {
+if (roomTrack) $('#rooms').onclick = e => {
   const button = e.target.closest('button[data-id]');
   if (!button) return;
   const type = rooms.find(room => room.id === button.dataset.id);
@@ -116,11 +120,13 @@ document.addEventListener('keydown', e => {
   else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 const menuToggle = $('.menu-toggle'), mainNav = $('#mainNav');
+const menuIcon = menuToggle.innerHTML;
+const closeIcon = '<svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg>'; 
 menuToggle.onclick = () => {
   const expanded = menuToggle.getAttribute('aria-expanded') === 'true';
   menuToggle.setAttribute('aria-expanded', String(!expanded));
   menuToggle.setAttribute('aria-label', expanded ? 'Open menu' : 'Close menu');
-  menuToggle.textContent = expanded ? '☰' : '×';
+  menuToggle.innerHTML = expanded ? menuIcon : closeIcon;
   mainNav.classList.toggle('open', !expanded);
 };
 mainNav.onclick = e => {
@@ -128,7 +134,7 @@ mainNav.onclick = e => {
     mainNav.classList.remove('open');
     menuToggle.setAttribute('aria-expanded', 'false');
     menuToggle.setAttribute('aria-label', 'Open menu');
-    menuToggle.textContent = '☰';
+    menuToggle.innerHTML = menuIcon;
   }
 };
 const summary = (p, extra = '') => `<div class="sum">${extra}<div><span>${p.nights} night${p.nights > 1 ? 's' : ''}</span><span>${money(p.subtotal)}</span></div><div><span>Taxes (12%)</span><span>${money(p.tax)}</span></div><div class="tot"><span>Total</span><span>${money(p.total)}</span></div></div>`;
@@ -153,11 +159,11 @@ function success(b) {
   <p class="muted">Your booking is recorded for ${esc(b.email)}. Payment is due at the hotel.</p><div class="ref">${esc(b.reference)}</div>
   ${summary(b.pricing, `<div><span>Room</span><span>${esc(b.roomName)} #${b.room}</span></div><div><span>Check-in</span><span>${fmtDate(b.checkIn)}</span></div><div><span>Check-out</span><span>${fmtDate(b.checkOut)}</span></div><div><span>Payment</span><span>${b.payment}</span></div>`)}
   <div class="actions"><button class="btn" onclick="window.print()">Print voucher</button><button class="btn ghost" id="done">Done</button><button class="btn" id="dine">Order food</button></div></div>`);
-  $('#dine').onclick = () => { close(); $('#dining').scrollIntoView({ behavior: 'smooth' }); };
+  $('#dine').onclick = () => { try { sessionStorage.setItem('ma_dining_guest', JSON.stringify(ctx)); } catch { } window.location.href = 'dining.html'; };
   $('#done').onclick = () => { close(); $('#search').dispatchEvent(new Event('submit', { cancelable: true })); };
 }
 
-$('#lookup').onsubmit = async e => {
+if ($('#lookup')) $('#lookup').onsubmit = async e => {
   e.preventDefault(); $('#lookupMsg').textContent = ''; $('#lookupResult').innerHTML = '';
   try { const { booking: b } = await api(`/api/bookings/${encodeURIComponent($('#lref').value.trim())}?email=${encodeURIComponent($('#lemail').value.trim())}`); showBooking(b); }
   catch (err) { $('#lookupMsg').textContent = err.message; }
@@ -171,10 +177,11 @@ function showBooking(b) {
     try { showBooking((await api(`/api/bookings/${b.reference}/cancel`, { email: b.email })).booking); } catch (err) { $('#lookupMsg').textContent = err.message; }
   };
 }
-$('#search').dispatchEvent(new Event('submit', { cancelable: true }));
+if ($('#search')) $('#search').dispatchEvent(new Event('submit', { cancelable: true }));
 
 // ---------- Dining: menu, order, live tracking, ready alert ----------
 let menu = [], cart = {}, ctx = {}, cat = 'All', tracked = null, timer = null, lastStatus = null, lastOrder = null;
+if ($('#menu')) { try { ctx = JSON.parse(sessionStorage.getItem('ma_dining_guest')) || {}; } catch { } }
 const STEPS = ['RECEIVED', 'PREPARING', 'READY', 'DELIVERED'], LABEL = { RECEIVED: 'Received', PREPARING: 'Preparing', READY: 'Ready', DELIVERED: 'Delivered', CANCELLED: 'Cancelled' };
 const store = { get() { try { return JSON.parse(sessionStorage.getItem('ma_order')); } catch { return null; } }, set(v) { try { v ? sessionStorage.setItem('ma_order', JSON.stringify(v)) : sessionStorage.removeItem('ma_order'); } catch { } } };
 const cartLines = () => Object.entries(cart).map(([id, qty]) => ({ ...menu.find(m => m.id === id), qty }));
@@ -182,15 +189,26 @@ const cartSub = () => cartLines().reduce((s, l) => s + l.price * l.qty, 0);
 
 function renderMenu(anim) {
   $('#menuStatus').textContent = '';
-  $('#tabs').innerHTML = ['All', ...new Set(menu.map(m => m.cat))].map(c => `<button class="tab ${c === cat ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
-  $('#menu').innerHTML = menu.filter(m => cat === 'All' || m.cat === cat).map((m, i) => `<div class="card dish ${anim ? 'enter' : ''}" style="animation-delay:${i * .06}s"><div class="ico">${esc(m.icon)}</div>
-    <div class="dinfo"><h4>${esc(m.name)}</h4><p>${esc(m.desc)}</p><b>${money(m.price)}</b></div><div class="qty">${cart[m.id] ? `<button data-id="${esc(m.id)}" data-d="-1" aria-label="Remove one ${esc(m.name)}">&minus;</button><span>${cart[m.id]}</span>` : ''}<button data-id="${esc(m.id)}" data-d="1" aria-label="Add ${esc(m.name)}">+</button></div></div>`).join('');
+  const categories = ['All', 'Breakfast', 'Lunch', 'Dinner', ...new Set(menu.map(m => m.cat).filter(c => !['Breakfast', 'Lunch', 'Dinner'].includes(c)))];
+  $('#tabs').innerHTML = categories.map(c => `<button type="button" class="tab ${c === cat ? 'on' : ''}" aria-pressed="${c === cat}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  const dishes = menu.filter(m => cat === 'All' || m.cat === cat || (m.meals || []).includes(cat));
+  $('#menu').innerHTML = dishes.map((m, i) => `<article class="card dish ${anim ? 'enter' : ''}" style="animation-delay:${i * .04}s">
+    <div class="dish-photo"><span class="dish-placeholder" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="34" cy="33" r="20"/><circle cx="34" cy="33" r="14"/><path d="M6 10v15m5-15v15M6 20h5M8.5 25v30M59 10v45M59 10c-7 7-7 20 0 20"/></svg></span><img src="images/food/${encodeURIComponent(m.id)}.jpg" alt="${esc(m.name)}" loading="lazy" decoding="async"><span class="dish-category">${esc(m.cat)}</span></div>
+    <div class="dinfo"><h4>${esc(m.name)}</h4><p>${esc(m.desc)}</p><div class="dish-footer"><b>${money(m.price)}</b><div class="qty">${cart[m.id] ? `<button type="button" data-id="${esc(m.id)}" data-d="-1" aria-label="Remove one ${esc(m.name)}">&minus;</button><span aria-label="Quantity">${cart[m.id]}</span>` : ''}<button type="button" data-id="${esc(m.id)}" data-d="1" aria-label="Add ${esc(m.name)}">+</button></div></div></div></article>`).join('') || '<p class="empty">No dishes in this category yet.</p>';
+  $('#menu').querySelectorAll('.dish-photo img').forEach(img => {
+    const loaded = () => { img.hidden = !img.naturalWidth; img.parentElement.classList.toggle('has-photo', !!img.naturalWidth); };
+    img.addEventListener('load', loaded);
+    img.addEventListener('error', loaded);
+    if (img.complete) loaded();
+  });
   const n = Object.values(cart).reduce((a, b) => a + b, 0);
-  $('#cartbar').classList.toggle('show', n > 0); $('#cartbar span').textContent = `${n} item${n > 1 ? 's' : ''}, ${money(cartSub())}`;
+  $('#cartbar').classList.toggle('show', n > 0); $('#cartbar span').innerHTML = `${n} item${n > 1 ? 's' : ''}, ${money(cartSub())}`;
 }
-$('#tabs').onclick = e => { if (e.target.dataset.c) { cat = e.target.dataset.c; renderMenu(true); } };
-$('#menu').onclick = e => { const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id, next = (cart[id] || 0) + +b.dataset.d; if (next > 20) { $('#menuStatus').textContent = 'A maximum of 20 of each item can be ordered.'; return; } cart[id] = Math.max(0, next); if (!cart[id]) delete cart[id]; renderMenu(); };
-$('#reviewBtn').onclick = openCheckout;
+if ($('#menu')) {
+  $('#tabs').onclick = e => { if (e.target.dataset.c) { cat = e.target.dataset.c; renderMenu(true); } };
+  $('#menu').onclick = e => { const b = e.target.closest('button[data-id]'); if (!b) return; const id = b.dataset.id, next = (cart[id] || 0) + +b.dataset.d; if (next > 20) { $('#menuStatus').textContent = 'A maximum of 20 of each item can be ordered.'; return; } cart[id] = Math.max(0, next); if (!cart[id]) delete cart[id]; renderMenu(); };
+  $('#reviewBtn').onclick = openCheckout;
+}
 
 function openCheckout() {
   const sub = cartSub(), tax = +(sub * 0.12).toFixed(2);
@@ -236,14 +254,16 @@ function onStatus(o) {
   if (o.status === 'READY') alertReady(o);
   if (o.status === 'DELIVERED' || o.status === 'CANCELLED') { clearInterval(timer); tracked = null; store.set(null); setTimeout(() => { pill.hidden = true; }, 10000); }
 }
-$('#pill').onclick = () => { if (lastOrder) { open(trackerHTML(lastOrder)); bindTracker(lastOrder); } };
+if ($('#pill')) $('#pill').onclick = () => { if (lastOrder) { open(trackerHTML(lastOrder)); bindTracker(lastOrder); } };
 function alertReady(o) {
   const msg = `Your order ${o.reference} is ready${o.room ? ` and on its way to room ${o.room}.` : '. Please collect it at the restaurant.'}`;
   chime(); toast(msg); if ('Notification' in window && Notification.permission === 'granted') new Notification('Your order is ready', { body: msg });
 }
 function chime() { try { const c = new (window.AudioContext || window.webkitAudioContext)();[880, 1175].forEach((f, i) => { const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + i * .18; o.frequency.value = f; o.connect(g); g.connect(c.destination); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.2, t + .03); g.gain.exponentialRampToValueAtTime(.0001, t + .6); o.start(t); o.stop(t + .65); }); } catch { } }
 function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'alert'); t.textContent = msg; document.body.append(t); setTimeout(() => t.classList.add('out'), 9000); setTimeout(() => t.remove(), 9700); }
+if ($('#menu')) {
 api('/api/menu').then(r => { menu = r.menu; renderMenu(true); }).catch(err => {
   $('#menuStatus').textContent = `The menu could not be loaded. ${err.message}`;
 });
 const saved = store.get(); if (saved) { tracked = saved; poll(); }
+}
