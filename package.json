@@ -1,13 +1,17 @@
 {
     "name": "maison-aurelia-booking",
     "version": "1.0.0",
-    "description": "Hotel booking & confirmation system (zero dependencies)",
+    "description": "Hotel booking and dining system with local JSON or Supabase PostgreSQL storage",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
         "test": "node test/smoke.js"
     },
     "engines": {
-        "node": ">=16"
+        "node": ">=22"
+    },
+    "dependencies": {
+        "dotenv": "^16.6.1",
+        "pg": "^8.23.1"
     }
 }

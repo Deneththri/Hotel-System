@@ -1,4 +1,11 @@
 @media screen {
+  body:is(.landing-page, .admin-page) {
+    background:
+        radial-gradient(ellipse at 95% 26%, #a9d8e1 0%, transparent 30%),
+        radial-gradient(ellipse at 0% 58%, #b7dfdc 0%, transparent 33%),
+        linear-gradient(180deg, #dceff2, #eef8f8 42%, #dceff2);
+  }
+
   .display-preferences:not([hidden]) {
     display: flex;
     align-items: center;
@@ -117,7 +124,6 @@
   }
 
   [data-theme="dark"] :is(
-    .dining-page .brand-name, .dining-page .brand-subtitle, .dining-page .main-nav a,
     .dining-page .menu-toggle, .dining-back,
     .search-intro strong, .hotel-details .stat-item strong, .room h3, .room .price b,
     .experience-cards h3, .journey-copy h3, .dining-preview-note p,
@@ -150,6 +156,10 @@
     background: #265361;
     border-color: #628b96;
     color: var(--ink);
+  }
+
+  .dining-page #dining {
+    background: transparent;
   }
 }
 

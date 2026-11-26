@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#245ddd">
+  <meta name="description"
+    content="Explore rooms and suites and check availability at Aurelia Grand.">
+  <title>Rooms &amp; Suites | Aurelia Grand</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Manrope:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="polish.css">
+  <link rel="stylesheet" href="resort.css">
+  <script src="preferences.js"></script>
+  <link rel="stylesheet" href="preferences.css">
+  <link rel="stylesheet" href="luxury.css">
+  <link rel="stylesheet" href="navigation.css">
+  <script src="navigation.js" defer></script>
+</head>
+
+<body class="landing-page home-page luxury-page rooms-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-nav">
+    <nav class="home-primary-nav" aria-label="Main navigation">
+      <a href="index.html#top">Home</a>
+      <a href="index.html#stay">Rooms</a>
+      <a href="index.html#dining">Dining</a>
+      <a href="index.html#about">About Us</a>
+      <a href="index.html#manage">Manage Booking</a>
+    </nav>
+    <a class="brand brand-lockup" href="index.html#top" aria-label="Aurelia Grand home">
+      <span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span>
+    </a>
+    <div class="home-nav-actions">
+      <details class="home-site-menu">
+        <summary aria-label="Hotel menu"><span class="home-menu-icon" aria-hidden="true"></span><span class="home-menu-label">Menu</span></summary>
+        <nav class="home-menu-panel" aria-label="Hotel menu">
+          <a href="index.html#top">Home</a>
+          <a href="index.html#stay">Rooms &amp; Suites</a>
+          <a href="index.html#dining">Dining at Aurelia</a>
+          <a href="index.html#about">About Us</a>
+          <a href="index.html#journey">A stay, beautifully unfolding</a>
+          <a href="index.html#facilities">Facilities &amp; services</a>
+          <a href="index.html#gallery">Hotel gallery</a>
+          <a href="index.html#contact">Guest information</a>
+          <a href="index.html#manage">Manage your booking</a>
+        </nav>
+      </details>
+      <div class="display-preferences" hidden>
+        <button class="preference-control" type="button" data-theme-choice aria-label="Dark mode" aria-pressed="false">
+          <svg class="preference-icon preference-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          <svg class="preference-icon preference-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 14.1A9 9 0 0 1 9.9 3.2a9 9 0 1 0 10.9 10.9Z"/></svg>
+        </button>
+        <button class="preference-control" type="button" data-currency-choice aria-label="Display prices in US dollars" aria-pressed="false">
+          <span class="home-currency-label" aria-hidden="true"><span>LKR</span><span>/</span><span>$</span></span>
+        </button>
+      </div>
+      <a class="home-book-link" href="index.html#stay">
+        <svg class="ui-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18m-13 5 2 2 4-4"/></svg>
+        <span>Check availability</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="main" class="landing-shell">
+    <header class="luxury-hero rooms-hero">
+      <div><p class="luxury-kicker">Stay at Aurelia Grand</p><h1>Rooms &amp; Suites</h1>
+      <p>From a quiet garden retreat to a private terrace above the coast.</p></div>
+    </header>
+    <section class="luxury-availability luxury-surface" id="availability" aria-labelledby="availabilityTitle">
+      <h2 id="availabilityTitle">Find your stay</h2>
+      <ol class="journey-steps" aria-label="Booking progress">
+        <li aria-current="step">Dates &amp; room</li><li>Guest details</li><li>Confirmation</li>
+      </ol>
+      <form id="search" class="luxury-search" aria-label="Search room availability">
+        <label><span class="field-caption">Check-in</span><input type="date" id="checkIn" required></label>
+        <label><span class="field-caption">Check-out</span><input type="date" id="checkOut" required></label>
+        <label>
+          <span class="field-caption">Adults</span>
+          <select id="adults">
+            <option>1</option>
+            <option selected>2</option>
+            <option>3</option>
+            <option>4</option>
+          </select>
+        </label>
+        <label>
+          <span class="field-caption">Children</span>
+          <select id="children">
+            <option selected>0</option>
+            <option>1</option>
+            <option>2</option>
+            <option>3</option>
+          </select>
+        </label>
+        <div class="booking-search-actions">
+          <button class="btn" type="submit">Check availability</button>
+        </div>
+      </form>
+      <p id="searchMsg" class="msg" role="status" aria-live="polite"></p>
+    </section>
+    <section id="stay" class="section stay-section">
+      <div class="section-heading">
+        <h2>Choose your room</h2>
+        <p class="muted">Compare room features and prices for your dates.
+        </p>
+      </div>
+      <p class="room-results-meta" id="roomResultsMeta" role="status" aria-live="polite"></p>
+      <div id="rooms" class="grid room-track"></div>
+    </section>
+
+  </main>
+
+  <footer><div class="footer-signature" aria-hidden="true">AURELIA GRAND<span>A WORLD OF YOUR OWN.</span></div><a class="footer-brand" href="index.html#top">Aurelia Grand</a><span>Thoughtful stays, at your own pace.</span><a
+      href="index.html#contact">Guest information</a>
+    <a href="admin.html">Staff sign-in</a></footer>
+
+  <div id="modal" class="modal" hidden>
+    <div class="sheet card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <button class="x" id="close" aria-label="Close">&times;</button>
+      <div id="sheetBody"></div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+
+</html>

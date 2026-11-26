@@ -1,0 +1,42 @@
+﻿.demo-guide {
+  position: fixed;
+  inset: auto 1rem 1rem auto;
+  z-index: 10;
+  box-sizing: border-box;
+  max-width: calc(100vw - 2rem);
+  padding: .75rem 1rem;
+  border: 1px solid #9d8257;
+  border-radius: .75rem;
+  background: #19251f;
+  color: #faf2e4;
+  box-shadow: 0 6px 20px #0003;
+  font: 500 .82rem/1.6 Manrope, sans-serif;
+}
+
+.demo-guide-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.demo-guide ol {
+  margin: .3rem 0;
+  padding-inline-start: 1.25rem;
+}
+
+.demo-guide a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: .18em;
+}
+
+.demo-guide button {
+  border: 1px solid #9d8257;
+  border-radius: .35rem;
+  padding: .1rem .45rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

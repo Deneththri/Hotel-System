@@ -4,3 +4,11 @@ outbox/*.html
 data/staff.json
 data/staff.json.tmp
 data/audit.log
+.env
+.env.*
+!.env.example
+node_modules/
+.history/.env*
+.local-assets/
+aurelia-grand-release.zip
+.history/

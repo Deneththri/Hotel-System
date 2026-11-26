@@ -1,6 +1,6 @@
 const displayPreferences = (() => {
   const root = document.documentElement;
-  const lkrPerUsd = 333;
+  const lkrPerUsd = 332.58;
   const rupees = new Intl.NumberFormat('en-LK', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -34,13 +34,14 @@ const displayPreferences = (() => {
     const themeChoice = controls.querySelector('[data-theme-choice]');
     const currencyChoice = controls.querySelector('[data-currency-choice]');
     themeChoice.setAttribute('aria-pressed', root.dataset.theme === 'dark');
-    currencyChoice.setAttribute('aria-pressed', currency === 'USD');
+    if (currencyChoice) currencyChoice.title = `USD estimates use Rs ${lkrPerUsd} per US dollar as of 26 November 2026`;
+    currencyChoice?.setAttribute('aria-pressed', currency === 'USD');
     themeChoice.addEventListener('click', () => {
       setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
       themeChoice.setAttribute('aria-pressed', root.dataset.theme === 'dark');
       save('theme', root.dataset.theme);
     });
-    currencyChoice.addEventListener('click', () => {
+    currencyChoice?.addEventListener('click', () => {
       currency = currency === 'USD' ? 'LKR' : 'USD';
       currencyChoice.setAttribute('aria-pressed', currency === 'USD');
       save('currency', currency);

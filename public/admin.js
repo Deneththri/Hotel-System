@@ -1,39 +1,71 @@
 const $ = s => document.querySelector(s), H = () => ({ 'Content-Type': 'application/json', 'x-requested-with': 'olu' }), e = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])), money = displayPreferences.price;
 const bookingNext = { CONFIRMED: ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'], CHECKED_IN: ['CHECKED_OUT'], CHECKED_OUT: [], CANCELLED: [], NO_SHOW: [] };
 const orderNext = { RECEIVED: ['PREPARING', 'CANCELLED'], PREPARING: ['READY'], READY: ['DELIVERED'], DELIVERED: [], CANCELLED: [] };
-let lastOrders = '', refreshTimer, expiryTimer, user, resetTarget;
+let lastBookings = '', lastOrders = '', refreshTimer, expiryTimer, user, resetTarget;
 let bookingsData = [], ordersData = [];
 const roleNames = { manager: 'Manager', frontdesk: 'Front desk', kitchen: 'Kitchen' };
 const message = value => { $('#m').textContent = value; };
 const formValues = form => Object.fromEntries(new FormData(form));
-const localToday = () => {
-    const date = new Date();
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-};
+const hotelCalendar = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit'
+});
+const localToday = () => hotelCalendar.format(new Date());
 const searchTerm = () => $('#dashboardFilter').value.trim().toLowerCase();
+const pendingUpdates = new Set();
+const statusLabels = {
+    CONFIRMED: 'Confirmed', CHECKED_IN: 'Checked in', CHECKED_OUT: 'Checked out',
+    CANCELLED: 'Cancelled', NO_SHOW: 'No show', RECEIVED: 'Received', PREPARING: 'Preparing',
+    READY: 'Ready', DELIVERED: 'Delivered'
+};
+const actionLabels = {
+    CHECKED_IN: 'Check in', CHECKED_OUT: 'Check out', CANCELLED: 'Cancel',
+    NO_SHOW: 'Mark no show', PREPARING: 'Start preparing', READY: 'Mark ready', DELIVERED: 'Mark delivered'
+};
+const matchesQueue = (status, transitions) => {
+    const queue = $('#queueFilter').value;
+    return queue === 'all' || (queue === 'active') === Boolean(transitions[status]?.length);
+};
+function queueActions(reference, status, transitions) {
+    const [primary, ...alternatives] = transitions[status] || [];
+    const disabled = pendingUpdates.has(reference) ? 'disabled' : '';
+    const button = (next, style) => `<button class="btn ${style}" type="button" data-ref="${e(reference)}" data-next="${next}"
+        aria-label="${actionLabels[next]} ${e(reference)}" ${disabled}>${actionLabels[next]}</button>`;
+    return `<span class="status ${e(status)}">${statusLabels[status] || e(status)}</span>
+        ${primary ? `<div class="queue-actions">${button(primary, '')}
+        ${alternatives.length ? `<details><summary aria-label="More actions for ${e(reference)}">More</summary>
+        <div>${alternatives.map(next => button(next, 'ghost')).join('')}</div></details>` : ''}</div>` : ''}`;
+}
 function renderBookings() {
     const term = searchTerm();
-    const bookings = bookingsData.filter(b => [b.reference, b.guest, b.email, b.roomName, b.room, b.status].some(value => String(value).toLowerCase().includes(term)));
+    const bookings = bookingsData.filter(b => matchesQueue(b.status, bookingNext) &&
+        [b.reference, b.guest, b.email, b.roomName, b.room, statusLabels[b.status]].some(value => String(value).toLowerCase().includes(term)));
     $('#bookingCount').textContent = bookings.length;
-    $('#bookingRows').innerHTML = bookings.length ? bookings.map(b => {
-        const options = [b.status, ...(bookingNext[b.status] || [])];
-        return `<tr><td><span class="table-ref">${e(b.reference)}</span></td><td><strong>${e(b.guest)}</strong><small class="table-sub">${e(b.email)}</small></td><td>${e(b.roomName)}<small class="table-sub">Room ${e(b.room)}</small></td><td>${e(b.checkIn)}<small class="table-sub">to ${e(b.checkOut)}</small></td><td>${money(b.pricing.total)}</td><td><select data-r="${e(b.reference)}" data-current="${e(b.status)}" aria-label="Update booking ${e(b.reference)}">${options.map(s => `<option value="${s}" ${s === b.status ? 'selected' : ''}>${s.replace('_', ' ')}</option>`).join('')}</select></td></tr>`;
-    }).join('') : `<tr><td colspan="6" class="empty">${term ? 'No bookings match your search.' : 'No bookings yet.'}</td></tr>`;
+    $('#bookingRows').innerHTML = bookings.length ? bookings.map(b =>
+        `<tr><td><span class="table-ref">${e(b.reference)}</span></td><td><strong>${e(b.guest)}</strong><small class="table-sub">${e(b.email)}</small></td>
+        <td>${e(b.roomName)}<small class="table-sub">Room ${e(b.room)}</small></td><td>${e(b.checkIn)}<small class="table-sub">to ${e(b.checkOut)}</small></td>
+        <td>${money(b.pricing.total)}</td><td>${queueActions(b.reference, b.status, bookingNext)}</td></tr>`
+    ).join('') : '<tr><td colspan="6" class="empty">No bookings to show.</td></tr>';
 }
 function renderOrders() {
     const term = searchTerm();
-    const orders = ordersData.filter(o => [o.reference, o.guest, o.room, o.status, o.note, ...o.lines.map(line => line.name)].some(value => String(value || '').toLowerCase().includes(term)));
+    const orders = ordersData.filter(o => matchesQueue(o.status, orderNext) &&
+        [o.reference, o.guest, o.room, statusLabels[o.status], o.note, ...o.lines.map(line => line.name)]
+            .some(value => String(value || '').toLowerCase().includes(term)));
     $('#orderCount').textContent = orders.length;
-    $('#ob').innerHTML = orders.length ? orders.map(o => {
-        const options = [o.status, ...(orderNext[o.status] || [])];
-        return `<tr><td><span class="table-ref">${e(o.reference)}</span></td><td><strong>${e(o.guest)}</strong><small class="table-sub">${o.room ? 'Room ' + e(o.room) : 'Restaurant pickup'}</small></td><td>${o.lines.map(l => `${e(l.qty)} × ${e(l.name)}`).join('<br>')}${o.note ? `<small class="table-sub">Note: ${e(o.note)}</small>` : ''}</td><td>${money(o.pricing.total)}</td><td><select data-o="${e(o.reference)}" data-current="${e(o.status)}" aria-label="Update order ${e(o.reference)}">${options.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td></tr>`;
-    }).join('') : `<tr><td colspan="5" class="empty">${term ? 'No kitchen orders match your search.' : 'No orders yet.'}</td></tr>`;
+    $('#ob').innerHTML = orders.length ? orders.map(o =>
+        `<tr><td><span class="table-ref">${e(o.reference)}</span></td><td><strong>${e(o.guest)}</strong>
+        <small class="table-sub">${o.room ? 'Room ' + e(o.room) : 'Restaurant pickup'}</small></td>
+        <td>${o.lines.map(l => `${e(l.qty)} &times; ${e(l.name)}`).join('<br>')}${o.note ? `<small class="table-sub">Note: ${e(o.note)}</small>` : ''}</td>
+        <td>${money(o.pricing.total)}</td><td>${queueActions(o.reference, o.status, orderNext)}</td></tr>`
+    ).join('') : '<tr><td colspan="5" class="empty">No kitchen orders to show.</td></tr>';
 }
 function renderMetrics() {
     const today = localToday();
     $('#metricBookings').textContent = bookingsData.length;
     $('#metricArrivals').textContent = bookingsData.filter(b => b.checkIn === today && b.status === 'CONFIRMED').length;
     $('#metricInHouse').textContent = bookingsData.filter(b => b.status === 'CHECKED_IN').length;
+    $('#metricPreparing').textContent = ordersData.filter(order => order.status === 'PREPARING').length;
+    $('#metricReady').textContent = ordersData.filter(order => order.status === 'READY').length;
     $('#metricOrders').textContent = ordersData.filter(o => !['DELIVERED', 'CANCELLED'].includes(o.status)).length;
 }
 async function api(url, body) {
@@ -46,7 +78,9 @@ async function api(url, body) {
 async function loadBookings() {
     const activeUser = user;
     const { bookings } = await api('/api/admin/bookings');
-    if (activeUser !== user) return;
+    const signature = JSON.stringify(bookings);
+    if (activeUser !== user || signature === lastBookings) return;
+    lastBookings = signature;
     bookingsData = bookings;
     renderBookings();
 }
@@ -75,18 +109,23 @@ function closeReset() {
     $('#resetForm').hidden = true;
 }
 
+const welcomeTitle = $('.admin-welcome h1');
+const loginTitle = welcomeTitle.textContent;
 function showGate() {
+    delete document.body.dataset.staffRole;
+    welcomeTitle.textContent = loginTitle;
     clearInterval(refreshTimer);
     clearTimeout(expiryTimer);
     user = undefined;
     bookingsData = [];
     ordersData = [];
-    lastOrders = '';
+    lastBookings = lastOrders = '';
     for (const id of ['bookingRows', 'ob', 'staffTable', 'staffIdentity']) $('#' + id).textContent = '';
     for (const id of ['logout', 'changePassword', 'passwordForm', 'dashboard']) $('#' + id).hidden = true;
     $('#passwordForm').reset();
     $('#staffForm').reset();
     $('#dashboardFilter').value = '';
+    $('#queueFilter').value = 'all';
     closeReset();
     $('#gate').hidden = false;
 }
@@ -108,7 +147,10 @@ async function showDashboard(session) {
     $('#staffIdentity').textContent = `${user.name} \u00b7 ${roleNames[user.role]}`;
     $('#gate').hidden = true;
     for (const id of ['logout', 'changePassword', 'dashboard']) $('#' + id).hidden = false;
-    $('#metrics').hidden = $('#bookingsPanel').hidden = user.role === 'kitchen';
+    document.body.dataset.staffRole = user.role;
+    welcomeTitle.textContent = `${roleNames[user.role]} dashboard`;
+    $('#bookingsPanel').hidden = user.role === 'kitchen';
+    for (const metric of document.querySelectorAll('.kitchen-metric')) metric.hidden = user.role === 'frontdesk';
     $('#sec-s').hidden = user.role !== 'manager';
     clearTimeout(expiryTimer);
     clearInterval(refreshTimer);
@@ -141,7 +183,9 @@ onSubmit('#gf', async (values, form) => {
     form.elements.password.value = '';
     await showDashboard(await api('/api/staff/login', values));
 });
-$('#dashboardFilter').oninput = () => { renderBookings(); renderOrders(); };
+function renderQueues() { renderBookings(); renderOrders(); }
+$('#dashboardFilter').oninput = renderQueues;
+$('#queueFilter').onchange = renderQueues;
 $('#logout').onclick = async () => {
     try {
         await api('/api/staff/logout', {});
@@ -191,19 +235,39 @@ onSubmit('#resetForm', async values => {
     if (target === user?.username) showGate();
     message('Password reset.');
 });
-$('#bookingRows').onchange = async event => {
-    const select = event.target, previous = select.dataset.current;
-    try {
-        await api(`/api/admin/bookings/${encodeURIComponent(select.dataset.r)}/status`, { status: select.value });
-        select.dataset.current = select.value; await loadBookings(); renderMetrics();
-    } catch (error) { $('#m').textContent = error.message; select.value = previous || 'CONFIRMED'; }
-};
-$('#ob').onchange = async event => {
-    const select = event.target;
-    const previous = select.dataset.current;
-    try { await api(`/api/admin/orders/${encodeURIComponent(select.dataset.o)}/status`, { status: select.value }); select.dataset.current = select.value; lastOrders = ''; await loadOrders(); renderMetrics(); }
-    catch (error) { $('#m').textContent = error.message; select.value = previous; }
-};
+function bindQueue(selector, resource, load, render) {
+    $(selector).onclick = async event => {
+        const button = event.target.closest('button[data-next]');
+        if (!button) return;
+        const { ref, next } = button.dataset;
+        if (pendingUpdates.has(ref)) return;
+        if (next === 'CANCELLED' && !confirm(`Cancel ${ref}?`)) return;
+        const activeUser = user;
+        pendingUpdates.add(ref);
+        for (const action of button.closest('td').querySelectorAll('button')) action.disabled = true;
+        message('');
+        try {
+            await api(`/api/admin/${resource}/${encodeURIComponent(ref)}/status`, { status: next });
+            if (user !== activeUser) return;
+            await load();
+            if (user === activeUser) {
+                renderMetrics();
+                message(`${ref} updated to ${statusLabels[next]}`);
+            }
+        } catch (error) {
+            if (user === activeUser) message(error.message);
+        } finally {
+            pendingUpdates.delete(ref);
+            if (user === activeUser) {
+                render();
+                const nextAction = [...$(selector).querySelectorAll('button[data-ref]')].find(action => action.dataset.ref === ref);
+                (nextAction || $('#queueFilter')).focus({ preventScroll: true });
+            }
+        }
+    };
+}
+bindQueue('#bookingRows', 'bookings', loadBookings, renderBookings);
+bindQueue('#ob', 'orders', loadOrders, renderOrders);
 async function boot() {
     try {
         await showDashboard(await api('/api/staff/me'));

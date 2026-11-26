@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="theme-color" content="#245ddd">
+    <meta name="theme-color" content="#102a2d">
     <meta name="description" content="Aurelia Grand front desk booking and kitchen order dashboard.">
     <title>Staff dashboard | Aurelia Grand</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,31 +14,63 @@
   <link rel="stylesheet" href="polish.css">
   <script src="preferences.js"></script>
   <link rel="stylesheet" href="preferences.css">
+  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="luxury.css">
+  <link rel="stylesheet" href="navigation.css">
+  <script src="navigation.js" defer></script>
 </head>
 
 <body class="admin-page">
-    <a class="skip-link" href="#main">Skip to dashboard</a>
-    <header class="nav admin-nav">
-        <a class="brand brand-lockup" href="/" aria-label="Aurelia Grand home"><span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span></a>
-        <div class="admin-nav-actions"><span id="staffIdentity"></span><button class="btn ghost" id="changePassword" type="button" hidden>Change password</button><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div>
-        <div class="display-preferences" hidden>
-          <button class="preference-control" type="button" data-theme-choice aria-label="Dark mode" aria-pressed="false">
-            <svg class="preference-icon preference-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
-            <svg class="preference-icon preference-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 14.1A9 9 0 0 1 9.9 3.2a9 9 0 1 0 10.9 10.9Z"/></svg>
-          </button>
-          <button class="preference-control" type="button" data-currency-choice aria-label="Display prices in US dollars" aria-pressed="false" title="USD estimates use Rs 333 per US dollar">
-            <svg class="preference-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><text class="currency-rupee" x="12" y="15.5" text-anchor="middle">Rs</text><path class="currency-dollar" d="M12 6.5v11m3-8H11a1.5 1.5 0 0 0 0 3h2a1.5 1.5 0 0 1 0 3H9"/></svg>
-          </button>
-        </div>
-    </header>
+    <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-nav">
+    <nav class="home-primary-nav" aria-label="Main navigation">
+      <a href="index.html#top">Home</a>
+      <a href="index.html#stay">Rooms</a>
+      <a href="index.html#dining">Dining</a>
+      <a href="index.html#about">About Us</a>
+      <a href="index.html#manage">Manage Booking</a>
+    </nav>
+    <a class="brand brand-lockup" href="index.html#top" aria-label="Aurelia Grand home">
+      <span class="brand-name">Aurelia</span><span class="brand-subtitle">GRAND</span>
+    </a>
+    <div class="home-nav-actions">
+      <details class="home-site-menu">
+        <summary aria-label="Hotel menu"><span class="home-menu-icon" aria-hidden="true"></span><span class="home-menu-label">Menu</span></summary>
+        <nav class="home-menu-panel" aria-label="Hotel menu">
+          <a href="index.html#top">Home</a>
+          <a href="index.html#stay">Rooms &amp; Suites</a>
+          <a href="index.html#dining">Dining at Aurelia</a>
+          <a href="index.html#about">About Us</a>
+          <a href="index.html#journey">A stay, beautifully unfolding</a>
+          <a href="index.html#facilities">Facilities &amp; services</a>
+          <a href="index.html#gallery">Hotel gallery</a>
+          <a href="index.html#contact">Guest information</a>
+          <a href="index.html#manage">Manage your booking</a>
+        </nav>
+      </details>
+      <div class="display-preferences" hidden>
+        <button class="preference-control" type="button" data-theme-choice aria-label="Dark mode" aria-pressed="false">
+          <svg class="preference-icon preference-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+          <svg class="preference-icon preference-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 14.1A9 9 0 0 1 9.9 3.2a9 9 0 1 0 10.9 10.9Z"/></svg>
+        </button>
+        <button class="preference-control" type="button" data-currency-choice aria-label="Display prices in US dollars" aria-pressed="false">
+          <span class="home-currency-label" aria-hidden="true"><span>LKR</span><span>/</span><span>$</span></span>
+        </button>
+      </div>
+      <a class="home-book-link" href="index.html#stay">
+        <svg class="ui-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 10h18m-13 5 2 2 4-4"/></svg>
+        <span>Check availability</span>
+      </a>
+    </div>
+  </header>
     <main id="main" class="admin-shell">
         <section class="admin-welcome">
-            <div><p class="eyebrow">AURELIA GRAND · STAFF</p><h1>Staff dashboard</h1></div>
-            <div class="welcome-mark" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z"/></svg></div>
+            <div><p class="eyebrow">AURELIA GRAND · STAFF</p><h1>Staff access</h1></div>
+            <div class="staff-session-actions"><span id="staffIdentity"></span><button class="btn ghost" id="changePassword" type="button" hidden>Change password</button><button class="btn ghost" id="logout" type="button" hidden>Sign out</button></div>
         </section>
         <section id="gate" hidden>
             <form id="gf" class="card admin-login">
-                <div class="login-copy"><h2>Staff sign-in</h2></div>
+                <div class="login-copy"><h2>Staff sign-in</h2><p>Use your staff account to access the hotel dashboard.</p></div>
                 <label>Username <input name="username" autocomplete="username" required></label>
                 <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
                 <button class="btn">Sign in</button>
@@ -51,14 +83,19 @@
             <button class="btn">Save password</button>
         </form>
         <p class="msg admin-message" id="m" role="status" aria-live="polite"></p>
-        <div id="dashboard" hidden>
-            <section id="metrics" class="admin-metrics" aria-label="Today's front desk summary">
+        <div id="dashboard" aria-label="Staff operations" hidden>
+            <section id="metrics" class="admin-metrics" aria-label="Operations summary">
                 <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h2m4 0h2"/></svg></span><div><span>Bookings</span><strong id="metricBookings">0</strong><small>all reservations</small></div></article>
                 <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h6v18h-6M3 12h12m-5-5 5 5-5 5"/></svg></span><div><span>Arriving today</span><strong id="metricArrivals">0</strong><small>confirmed stays</small></div></article>
                 <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18v-7h18v7M3 15h18M5 11V6h14v5M8 8h2m4 0h2M3 18v2m18-2v2"/></svg></span><div><span>In house</span><strong id="metricInHouse">0</strong><small>current guests</small></div></article>
                 <article class="metric-card"><span class="metric-icon" aria-hidden="true"><svg class="ui-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3v6a3 3 0 0 0 6 0V3M7 3v18M20 21V3c-5 2-5 10 0 10"/></svg></span><div><span>Open orders</span><strong id="metricOrders">0</strong><small>awaiting delivery</small></div></article>
+                <article class="metric-card kitchen-metric" hidden><div><span>In preparation</span><strong id="metricPreparing">0</strong><small>kitchen orders</small></div></article>
+                <article class="metric-card kitchen-metric" hidden><div><span>Ready</span><strong id="metricReady">0</strong><small>awaiting pickup or delivery</small></div></article>
             </section>
-            <label class="dashboard-search"><span aria-hidden="true">⌕</span><span class="sr-only">Filter bookings and orders</span><input id="dashboardFilter" type="search" placeholder="Search by guest, reference, room or dish"></label>
+            <div class="dashboard-tools"><label class="dashboard-search"><span aria-hidden="true">⌕</span><span class="sr-only">Filter bookings and orders</span><input id="dashboardFilter" type="search" placeholder="Search by guest, reference, room or dish"></label>
+            <label class="dashboard-queue">Show <select id="queueFilter">
+                <option value="all">All statuses</option><option value="active">Active</option><option value="closed">Completed or cancelled</option>
+            </select></label></div>
             <section id="bookingsPanel" class="admin-panel" aria-labelledby="bookingsTitle">
                 <div class="panel-heading"><div><p class="eyebrow">GUEST JOURNEY</p><h2 id="bookingsTitle">Bookings</h2></div><span class="panel-count" id="bookingCount">0</span></div>
                 <div class="card wrap" id="t">
@@ -115,7 +152,7 @@
             </section>
         </div>
     </main>
-    <footer class="admin-footer"><a href="/">← Return to guest website</a></footer>
+    <footer class="admin-footer"><a href="index.html#top">← Return to guest website</a></footer>
     <script src="admin.js" defer></script>
 </body>
 
